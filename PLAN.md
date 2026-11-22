@@ -58,6 +58,34 @@ Starting with **A** validates the idea quickly. Keeping the protocol in its own 
   - **Protocol:** turns the tree into messages.
   - **Transport:** WebSocket or local socket.
 
+### Imperative and declarative styles
+
+> ✅ **Decided: imperative only for now.** Declarative mode is a possible later addition.
+
+- **Imperative (current):** create controls, change their fields, call `page.Update()`.
+- **Declarative (Flet's components, `use_state`, `use_effect`, `observable`, router):** in Flet it lives entirely in the Python SDK; the client receives the same messages. It can be added in Go without touching the client.
+
+What declarative mode would look like:
+
+```go
+func Counter() flet.Control {
+	count, setCount := flet.UseState(0)
+	return &flet.Row{Controls: []flet.Control{
+		&flet.IconButton{Icon: icons.Remove, OnClick: func(*flet.Event) { setCount(count - 1) }},
+		&flet.Text{Value: strconv.Itoa(count), Size: 40},
+		&flet.IconButton{Icon: icons.Add, OnClick: func(*flet.Event) { setCount(count + 1) }},
+	}}
+}
+
+flet.App(func(page *flet.Page) { page.Render(Counter) })
+```
+
+What it needs:
+- **Reconciliation by position and type:** today the diff matches controls by identity. A re-render creates new structs, so ids must be carried over from the previous render, or every change would replace the whole subtree.
+- **Hooks:** `UseState`, `UseEffect`, `UseMemo`, `UseRef`, `UseContext` with generics, tracked by call order (like React).
+- **Components:** functions returning a control; Go has no decorators, so something like `flet.Component(Counter, props)`.
+- The declarative router would be a separate step.
+
 ---
 
 ## 4. Protocol
@@ -120,6 +148,7 @@ Revised after studying the Flet source and building the prototype.
 | 4. Server-backed web | Go binary serving the app | 1 to 2 days |
 | 5–6. Android + iOS | App running on device | 1 to 3 weeks |
 | 7. CLI and packaging | Something like `flet-go build` | 2 to 4 days |
+| Later (optional). Declarative mode | Components and hooks (see section 3) | 2 to 4 days |
 
 - **Desktop + web:** 1 to 2 weeks.
 - **Everything, including mobile:** 3 to 6 weeks.
