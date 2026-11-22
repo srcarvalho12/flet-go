@@ -136,6 +136,11 @@ The project is in its early days and every kind of help counts: trying it out an
 opening issues, improving docs, writing examples, or picking an item from the
 roadmap. Start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## License
+
+flet-go is licensed under the [Apache License 2.0](LICENSE), the same license as
+Flet. See [NOTICE](NOTICE) for attributions.
+
 ## Acknowledgements
 
 flet-go is built on [Flet](https://github.com/flet-dev/flet), by the Flet team and

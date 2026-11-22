@@ -1,0 +1,22 @@
+flet-go
+Copyright 2026 The flet-go authors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product includes software derived from Flet
+(https://github.com/flet-dev/flet), licensed under the Apache License,
+Version 2.0, by the Flet team and contributors:
+
+- spec/flet.json, spec/icons.json and spec/cupertino_icons.json are
+  extracted from the Flet Python SDK sources, including their documentation
+  strings and icon tables.
+- The files ending in _gen.go and the colors and icons packages are generated
+  from that spec and contain text from the Flet documentation strings.
+- The protocol implementation follows the Flet client protocol.
+
+At run time, flet-go downloads the Flet client (desktop or web) from the
+official Flet releases. The Flet client is distributed under its own license,
+and its third-party notices are included with it (assets/NOTICES).
+
+flet-go is an independent project and is not affiliated with or endorsed by
+the Flet team. "Flet" is used to describe compatibility with Flet.
