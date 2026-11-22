@@ -176,7 +176,10 @@ event.go            → events
 internal/protocol/  → message format
 internal/client/    → finds, downloads and launches the client
 examples/counter/   → the counter
+examples/list/      → add, remove and reorder list items
 ```
+
+`page_test.go` includes a fake client that applies patches the same way the Dart client does, so the diff can be tested without opening a window.
 
 The session lives in the root package, not in `internal/session`, to avoid an import cycle.
 
@@ -196,8 +199,6 @@ Automatic download: macOS and Windows. On Linux, use `FLET_CLIENT_PATH` for now.
 
 ### Known limitations
 
-- When a child list changes, the whole list is sent (no item-by-item add/remove yet).
-- Removed controls stay in the event index.
 - Events are handled one at a time, in arrival order.
 - No reconnection.
 - Automatic download not yet tested on Windows and not supported on Linux.
@@ -211,5 +212,5 @@ Automatic download: macOS and Windows. On Linux, use `FLET_CLIENT_PATH` for now.
 3. ~~Control tree, IDs, diff and event dispatch~~.
 4. ~~Counter working end to end~~.
 5. ~~Automatic client download~~ → macOS and Windows.
-6. Item-by-item list diff and index cleanup.
+6. ~~Item-by-item list diff and index cleanup~~ → add/remove/move ops, tested against a simulated client and the real one (`examples/list`).
 7. Phase 2: control generator from Flet's definitions.

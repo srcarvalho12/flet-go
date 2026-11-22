@@ -45,7 +45,7 @@ func (s *session) run() error {
 func (s *session) handle(m protocol.Message) {
 	switch m.Action {
 	case protocol.ActionRegisterClient:
-		s.page = newPage(s)
+		s.page = newPage(s.send)
 		s.main(s.page)
 		s.send(protocol.Message{
 			Action: protocol.ActionRegisterClient,
