@@ -203,14 +203,18 @@ app.go              → desktop: launches the client and accepts its connections
 web.go              → web: serves the web client and the WebSocket, base path
 uploads.go          → web: signed upload URLs and the upload endpoint
 page.go             → tree, diff, dialogs and sending changes
+router.go           → routes, groups, layouts, middleware, stacked views
+navigation.go       → Page.Go, Page.Run and page events
+state.go            → typed values per session (SessionKey)
 session.go          → client messages, sessions and reconnection
 invoke.go           → client method calls and the event queue
 methods.go          → client methods written by hand
 control.go          → control base and IDs
-controls.go         → internal page root, view, overlay, dialogs and services
+controls.go         → internal page root, overlay, dialogs and services
 values.go           → Color, IconData, pointer helpers, value encoding
 event.go            → base event
-*_gen.go            → generated controls, value types, events and enums
+*_gen.go            → generated controls (including View), page settings,
+                      value types, events, enums and methods
 colors/, icons/     → generated named colors and icons
 internal/protocol/  → message format
 internal/client/    → finds, downloads and launches the client (desktop and web)
@@ -223,6 +227,7 @@ examples/gallery/   → sample of generated controls and inputs
 examples/services/  → dialogs, snack bar, focus, clipboard, file picker, window
 examples/web/       → the counter served to the browser
 examples/upload/    → file uploads, served under /app/
+examples/router/    → pages in separate files, layouts, stacked views, login
 ```
 
 `page_test.go` includes a fake client that applies patches the same way the Dart client does, so the diff can be tested without opening a window.
@@ -242,6 +247,7 @@ Optional environment variables:
 | `FLETGO_DEBUG=1` | Log the messages exchanged with the client |
 | `FLET_WEB_PATH` | Use an extracted web client folder |
 | `FLET_WEB_URL` | Download the web client from another URL |
+| `FLET_ASSETS_DIR` | Folder with the app's own files (images, fonts, icons) |
 | `FLET_SESSION_TIMEOUT` | Seconds a web session is kept after its tab disconnects (default 3600) |
 | `FLET_MAX_UPLOAD_SIZE` | Maximum size of each uploaded file, in bytes |
 | `FLET_SECRET_KEY` | Key that signs upload URLs |
@@ -313,12 +319,47 @@ Required parameters are positional; optional ones go in an `...Options` struct. 
 - **Reconnection:** if the connection drops while the window is open, the client reconnects with its session id and gets the same page back; `main` does not run again. Method calls that were waiting fail with `ErrDisconnected`.
 - **Errors:** a panic in `main` or in a handler is logged and shown in the client.
 
+### Pages, routing and assets
+
+**Page settings and views.** `Page` embeds the generated `PageProps`: `Theme`, `DarkTheme`, `ThemeMode`, `Fonts`, `LocaleConfiguration` and the page events (`OnResize`, `OnKeyboardEvent`, `OnRouteChange`, `OnViewPop`, `OnPlatformBrightnessChange`, `OnAppLifecycleStateChange`...). `page.Views` is the stack of generated `View` controls, each with `AppBar`, `NavigationBar`, `Drawer`, `FloatingActionButton`, `Padding`, `Bgcolor`, `Scroll`... `page.Add` works on the first view.
+
+**Router.** Each page is a function, usually in its own file, connected to a route in `main.go`:
+
+```go
+r := flet.NewRouter()
+r.Layout(pages.MainLayout)                  // default layout
+r.Route("/", pages.Home)
+r.Route("/login", pages.Login, flet.NoLayout())
+products := r.Group("/products", nil, flet.Stacked())
+products.Route("/", pages.Products)
+products.Route("/{id}", pages.Product)      // ctx.Param("id")
+admin := r.Group("/admin", pages.AdminLayout)
+admin.Use(pages.RequireLogin)               // middleware: ctx.Redirect("/login")
+admin.Route("/", pages.Dashboard)
+r.NotFound(pages.NotFound)
+flet.Serve(":8550", r.Main)                 // or flet.App(r.Main)
+```
+
+- A page is `func(ctx *flet.RouteContext) flet.Control`. It runs every time its route opens. Returning a `*flet.View` gives it the whole screen and skips the layout.
+- Patterns follow `net/http`: `{name}` is one segment, `{name...}` the rest. A fixed segment beats a parameter, which beats a wildcard.
+- Layouts: the route's own (`WithLayout`, `NoLayout`), then the nearest group's, then the router's.
+- `ctx.Go(route)` (or `page.Go`) shows the route and updates the browser address. The browser's back and forward buttons, typed addresses, deep links and reloads all go through the router.
+- `Stacked()` builds the stack from the path: `/products/42` shows `/products` and `/` underneath, with a back arrow. Screens already on the stack are kept, not rebuilt.
+- `flet.NewSessionKey` stores typed values per session (logged-in user, cart), shared by every page.
+
+**Updates from other goroutines.** `page.Run(fn)` runs `fn` on the page's event queue, so it never overlaps a handler. Use it for timers, chat messages and background jobs.
+
+**Assets.** `WebOptions.AssetsDir` and `AppOptions.AssetsDir` (or `FLET_ASSETS_DIR`) point to a folder with the app's files: `assets/logo.png` is used as `&flet.Image{Src: "logo.png"}`. On the web its files take precedence over the client's (to replace `favicon.png`, `icons/`, `manifest.json` or `index.html`). On desktop the folder is passed to the client.
+
+Checked in the browser with `examples/router`: layouts, the navigation bar, the app's logo, stacked screens with back arrows, a deep link to `/products/2`, the login redirect and the browser's back button.
+
 ### Known limitations
 
 - Events are handled one at a time, in arrival order. A handler waiting on a slow method (e.g. the file picker) holds back the next events.
 - Desktop sessions are kept while the window is open; web sessions expire (see "Web").
 - Without `FLET_SECRET_KEY` (or `SecretKey`), upload URLs stop working when the server restarts.
-- Page events (`on_resize`, `on_route_change`...), routing and page methods (`push_route`, `get_device_info`) are not exposed yet.
+- Page methods `get_device_info`, `get_package_info` and `set_allowed_device_orientations` are not exposed yet.
+- `page.Go` and `page.Update` from another goroutine must go through `page.Run`.
 - `Share` methods are not generated yet.
 - Automatic download not yet tested on Windows and not supported on Linux.
 - Not generated yet: canvas shapes, extension packages (charts, maps, video...), and 24 fields with rare types (dates, times).
@@ -336,4 +377,6 @@ Required parameters are positional; optional ones go in an `...Options` struct. 
 7. ~~Phase 2: control generator from Flet's definitions~~ → see "Code generation".
 8. ~~Phase 3: control methods, dialogs, services, reconnection~~ → see "Methods, dialogs and services".
 9. ~~Phase 4: server-backed web~~ → see "Web".
-10. Phase 5–6: Android and iOS (Go as a library started by the Flutter app).
+10. ~~Web refinements: page settings, views, router, Page.Run, assets~~ → see "Pages, routing and assets".
+11. Web production: compression, cache headers, app name and icons, Flutter options (renderer, no CDN), graceful shutdown, and `flet-go build web` (one binary with the client embedded).
+12. Phase 5–6: Android and iOS (Go as a library started by the Flutter app).

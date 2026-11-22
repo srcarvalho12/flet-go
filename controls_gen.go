@@ -27170,13 +27170,13 @@ type Pagelet struct {
 	OnAnimationEnd func(e *Event)
 	// Content: A child Control contained by this Pagelet.
 	Content Control
-	// Appbar: An `AppBar` control to display at the top of the Pagelet.
-	Appbar Control
+	// AppBar: An `AppBar` control to display at the top of the Pagelet.
+	AppBar Control
 	// NavigationBar: A navigation bar (`NavigationBar` or `CupertinoNavigationBar`) control
 	// to display at the bottom of the `Pagelet`.
 	NavigationBar Control
-	// BottomAppbar: A `BottomAppBar` control to display at the bottom of this Pagelet.
-	BottomAppbar Control
+	// BottomAppBar: A `BottomAppBar` control to display at the bottom of this Pagelet.
+	BottomAppBar Control
 	// BottomSheet: The persistent bottom sheet to show information that supplements the
 	// primary content of this Pagelet.
 	BottomSheet Control
@@ -27303,14 +27303,14 @@ func (c *Pagelet) slots() map[string]Control {
 	if c.Content != nil {
 		s["content"] = c.Content
 	}
-	if c.Appbar != nil {
-		s["appbar"] = c.Appbar
+	if c.AppBar != nil {
+		s["appbar"] = c.AppBar
 	}
 	if c.NavigationBar != nil {
 		s["navigation_bar"] = c.NavigationBar
 	}
-	if c.BottomAppbar != nil {
-		s["bottom_appbar"] = c.BottomAppbar
+	if c.BottomAppBar != nil {
+		s["bottom_appbar"] = c.BottomAppBar
 	}
 	if c.BottomSheet != nil {
 		s["bottom_sheet"] = c.BottomSheet
@@ -39769,6 +39769,405 @@ func (c *VerticalDivider) applyProps(p map[string]any) {
 			assign(&c.LeadingIndent, v)
 		case "trailing_indent":
 			assign(&c.TrailingIndent, v)
+		}
+	}
+}
+
+// View: View is the top most container for all other controls.
+type View struct {
+	controlBase
+	// Expand: Specifies whether/how this control should expand to fill available space in
+	// its parent layout.
+	Expand any
+	// ExpandLoose: Allows the control to expand along the main axis if space is available,
+	// but does not require it to fill all available space.
+	ExpandLoose bool
+	// Col: If a parent of this control is a `ResponsiveRow`, this property is used to
+	// determine how many virtual columns of a screen this control will span.
+	Col any
+	// Opacity: Defines the transparency of the control.
+	Opacity *float64
+	// Tooltip: The tooltip to show when this control is hovered over.
+	Tooltip any
+	// Badge: A badge to show on top of this control.
+	Badge any
+	// Visible: Every control has `visible` property which is `True` by default - control is
+	// rendered on the page. Setting `visible` to `False` completely prevents control (and
+	// all its children if any) from rendering on a page canvas. Hidden controls cannot be
+	// focused or selected with a keyboard or mouse and they do not emit any events.
+	Visible *bool
+	// Disabled: Every control has `disabled` property which is `False` by default - control
+	// and all its children are enabled.
+	Disabled bool
+	// Rtl: Whether the text direction of the control should be right-to-left (RTL).
+	Rtl bool
+	// Width: Imposed Control width in virtual pixels.
+	Width float64
+	// Height: Imposed Control height in virtual pixels.
+	Height float64
+	// MinWidth: The minimum width this control can be laid out at, in virtual pixels.
+	MinWidth float64
+	// MaxWidth: The maximum width this control can be laid out at, in virtual pixels.
+	MaxWidth float64
+	// MinHeight: The minimum height this control can be laid out at, in virtual pixels.
+	MinHeight float64
+	// MaxHeight: The maximum height this control can be laid out at, in virtual pixels.
+	MaxHeight float64
+	// Left: The distance that the child's left edge is inset from the left of the stack.
+	Left float64
+	// Top: The distance that the child's top edge is inset from the top of the stack.
+	Top float64
+	// Right: The distance that the child's right edge is inset from the right of the stack.
+	Right float64
+	// Bottom: The distance that the child's bottom edge is inset from the bottom of the
+	// stack.
+	Bottom float64
+	// Align: Alignment of the control within its parent.
+	Align *Alignment
+	// Margin: Sets the margin of the control.
+	Margin any
+	// Rotate: Transforms this control using a rotation around its center.
+	Rotate any
+	// Scale: Scales this control along the 2D plane. Default scale factor is `1.0`, meaning
+	// no-scale.
+	Scale any
+	// Offset: Applies a translation transformation before painting the control.
+	Offset *Offset
+	// Flip: Flips this control horizontally and/or vertically.
+	Flip *Flip
+	// Transform: Applies a generic matrix transform to this control.
+	Transform *Transform
+	// AspectRatio: The aspect ratio of the control. It is defined as the ratio of `width` to
+	// `height`.
+	AspectRatio float64
+	// AnimateOpacity: Enables implicit animation of the `Control.opacity` property.
+	AnimateOpacity any
+	// AnimateSize: Enables implicit animation of this control's size.
+	AnimateSize any
+	// AnimatePosition: Enables implicit animation of the positioning properties
+	// (`LayoutControl.left`, `LayoutControl.right`, `LayoutControl.top` and
+	// `LayoutControl.bottom`).
+	AnimatePosition any
+	// AnimateAlign: Enables implicit animation of the `LayoutControl.align` property.
+	AnimateAlign any
+	// AnimateMargin: Enables implicit animation of the `LayoutControl.margin` property.
+	AnimateMargin any
+	// AnimateRotation: Enables implicit animation of the `LayoutControl.rotate` property.
+	AnimateRotation any
+	// AnimateScale: Enables implicit animation of the `LayoutControl.scale` property.
+	AnimateScale any
+	// AnimateOffset: Enables implicit animation of the `LayoutControl.offset` property.
+	AnimateOffset any
+	// SizeChangeInterval: Sampling interval in milliseconds for `on_size_change` event.
+	SizeChangeInterval *int
+	// OnSizeChange: Called when the size of this control changes.
+	OnSizeChange func(e *LayoutSizeChangeEvent)
+	// OnAnimationEnd: Called when animation completes.
+	OnAnimationEnd func(e *Event)
+	// Scroll: Defines the scroll bar configuration of this control.
+	Scroll any
+	// AutoScroll: Whether to automatically move the scroll position to the end when the
+	// content changes.
+	AutoScroll bool
+	// AutoScrollAnimation: Animation used when `auto_scroll` moves the view to the end.
+	AutoScrollAnimation any
+	// ScrollInterval: Throttling in milliseconds for `on_scroll` event.
+	ScrollInterval *float64
+	// OnScroll: Called when scroll position is changed by a user.
+	OnScroll func(e *OnScrollEvent)
+	// Controls: A list of controls to display.
+	Controls []Control
+	// Route: View's route - not currently used by Flet framework, but can be used in a user
+	// program to update `Page.route` when a view popped.
+	Route string
+	// AppBar: An `AppBar` control to display at the top of the `Page`.
+	AppBar Control
+	// BottomAppBar: A `BottomAppBar` control to display at the bottom of the `Page`.
+	BottomAppBar Control
+	// FloatingActionButton: A `FloatingActionButton` control to display on top of `Page`
+	// content.
+	FloatingActionButton Control
+	// FloatingActionButtonLocation: Describes position of `floating_action_button`
+	FloatingActionButtonLocation any
+	// NavigationBar: A navigation bar (`NavigationBar` or `CupertinoNavigationBar`) control
+	// to display at the bottom of the `Page`.
+	NavigationBar Control
+	// Drawer: A `NavigationDrawer` control to display as a panel sliding from the start edge
+	// of the view.
+	Drawer Control
+	// EndDrawer: A `NavigationDrawer` control to display as a panel sliding from the end
+	// edge of the view.
+	EndDrawer Control
+	// VerticalAlignment: Defines how the child `controls` should be placed vertically.
+	VerticalAlignment MainAxisAlignment
+	// HorizontalAlignment: How the child Controls should be placed horizontally.
+	HorizontalAlignment CrossAxisAlignment
+	// Spacing: The vertical spacing between `controls` on the `Page`.
+	Spacing *float64
+	// Padding: A space between page contents and its edges.
+	Padding any
+	// Bgcolor: Background color of the view.
+	Bgcolor Color
+	// Decoration: The background decoration.
+	Decoration *BoxDecoration
+	// ForegroundDecoration: The foreground decoration.
+	ForegroundDecoration *BoxDecoration
+	// FullscreenDialog: If `True`, the view is a fullscreen modal dialog.
+	FullscreenDialog bool
+	// CanPop: Whether the view can be popped.
+	CanPop *bool
+	// OnConfirmPop: An event handler that is called when the view is about to be popped. You
+	// can use this event to confirm or cancel the pop action by calling `confirm_pop`
+	// method.
+	OnConfirmPop func(e *Event)
+}
+
+func (c *View) kind() string { return "View" }
+
+func (c *View) props() map[string]any {
+	m := map[string]any{}
+	if c.Expand != nil {
+		m["expand"] = encodeAny(c.Expand)
+	}
+	setIf(m, "expand_loose", c.ExpandLoose)
+	if c.Col != nil {
+		m["col"] = encodeAny(c.Col)
+	}
+	if c.Opacity != nil {
+		m["opacity"] = *c.Opacity
+	}
+	if c.Tooltip != nil {
+		m["tooltip"] = encodeAny(c.Tooltip)
+	}
+	if c.Badge != nil {
+		if _, ok := c.Badge.(Control); !ok {
+			m["badge"] = encodeAny(c.Badge)
+		}
+	}
+	if c.Visible != nil {
+		m["visible"] = *c.Visible
+	}
+	setIf(m, "disabled", c.Disabled)
+	setIf(m, "rtl", c.Rtl)
+	setIf(m, "width", c.Width)
+	setIf(m, "height", c.Height)
+	setIf(m, "min_width", c.MinWidth)
+	setIf(m, "max_width", c.MaxWidth)
+	setIf(m, "min_height", c.MinHeight)
+	setIf(m, "max_height", c.MaxHeight)
+	setIf(m, "left", c.Left)
+	setIf(m, "top", c.Top)
+	setIf(m, "right", c.Right)
+	setIf(m, "bottom", c.Bottom)
+	if c.Align != nil {
+		m["align"] = c.Align.toMap()
+	}
+	if c.Margin != nil {
+		m["margin"] = encodeAny(c.Margin)
+	}
+	if c.Rotate != nil {
+		m["rotate"] = encodeAny(c.Rotate)
+	}
+	if c.Scale != nil {
+		m["scale"] = encodeAny(c.Scale)
+	}
+	if c.Offset != nil {
+		m["offset"] = c.Offset.toMap()
+	}
+	if c.Flip != nil {
+		m["flip"] = c.Flip.toMap()
+	}
+	if c.Transform != nil {
+		m["transform"] = c.Transform.toMap()
+	}
+	setIf(m, "aspect_ratio", c.AspectRatio)
+	if c.AnimateOpacity != nil {
+		m["animate_opacity"] = encodeAny(c.AnimateOpacity)
+	}
+	if c.AnimateSize != nil {
+		m["animate_size"] = encodeAny(c.AnimateSize)
+	}
+	if c.AnimatePosition != nil {
+		m["animate_position"] = encodeAny(c.AnimatePosition)
+	}
+	if c.AnimateAlign != nil {
+		m["animate_align"] = encodeAny(c.AnimateAlign)
+	}
+	if c.AnimateMargin != nil {
+		m["animate_margin"] = encodeAny(c.AnimateMargin)
+	}
+	if c.AnimateRotation != nil {
+		m["animate_rotation"] = encodeAny(c.AnimateRotation)
+	}
+	if c.AnimateScale != nil {
+		m["animate_scale"] = encodeAny(c.AnimateScale)
+	}
+	if c.AnimateOffset != nil {
+		m["animate_offset"] = encodeAny(c.AnimateOffset)
+	}
+	if c.SizeChangeInterval != nil {
+		m["size_change_interval"] = *c.SizeChangeInterval
+	}
+	if c.OnSizeChange != nil {
+		m["on_size_change"] = true
+	}
+	if c.OnAnimationEnd != nil {
+		m["on_animation_end"] = true
+	}
+	if c.Scroll != nil {
+		m["scroll"] = encodeAny(c.Scroll)
+	}
+	setIf(m, "auto_scroll", c.AutoScroll)
+	if c.AutoScrollAnimation != nil {
+		m["auto_scroll_animation"] = encodeAny(c.AutoScrollAnimation)
+	}
+	if c.ScrollInterval != nil {
+		m["scroll_interval"] = *c.ScrollInterval
+	}
+	if c.OnScroll != nil {
+		m["on_scroll"] = true
+	}
+	setIf(m, "route", c.Route)
+	if c.FloatingActionButtonLocation != nil {
+		m["floating_action_button_location"] = encodeAny(c.FloatingActionButtonLocation)
+	}
+	setIf(m, "vertical_alignment", c.VerticalAlignment)
+	setIf(m, "horizontal_alignment", c.HorizontalAlignment)
+	if c.Spacing != nil {
+		m["spacing"] = *c.Spacing
+	}
+	if c.Padding != nil {
+		m["padding"] = encodeAny(c.Padding)
+	}
+	setIf(m, "bgcolor", c.Bgcolor)
+	if c.Decoration != nil {
+		m["decoration"] = c.Decoration.toMap()
+	}
+	if c.ForegroundDecoration != nil {
+		m["foreground_decoration"] = c.ForegroundDecoration.toMap()
+	}
+	setIf(m, "fullscreen_dialog", c.FullscreenDialog)
+	if c.CanPop != nil {
+		m["can_pop"] = *c.CanPop
+	}
+	if c.OnConfirmPop != nil {
+		m["on_confirm_pop"] = true
+	}
+	return m
+}
+
+func (c *View) lists() map[string][]Control {
+	return map[string][]Control{
+		"controls": c.Controls,
+	}
+}
+
+func (c *View) slots() map[string]Control {
+	s := map[string]Control{}
+	if v, ok := c.Badge.(Control); ok {
+		s["badge"] = v
+	}
+	if c.AppBar != nil {
+		s["appbar"] = c.AppBar
+	}
+	if c.BottomAppBar != nil {
+		s["bottom_appbar"] = c.BottomAppBar
+	}
+	if c.FloatingActionButton != nil {
+		s["floating_action_button"] = c.FloatingActionButton
+	}
+	if c.NavigationBar != nil {
+		s["navigation_bar"] = c.NavigationBar
+	}
+	if c.Drawer != nil {
+		s["drawer"] = c.Drawer
+	}
+	if c.EndDrawer != nil {
+		s["end_drawer"] = c.EndDrawer
+	}
+	return s
+}
+
+func (c *View) applyProps(p map[string]any) {
+	for k, v := range p {
+		switch k {
+		case "expand_loose":
+			assign(&c.ExpandLoose, v)
+		case "opacity":
+			assignPtr(&c.Opacity, v)
+		case "visible":
+			assignPtr(&c.Visible, v)
+		case "disabled":
+			assign(&c.Disabled, v)
+		case "rtl":
+			assign(&c.Rtl, v)
+		case "width":
+			assign(&c.Width, v)
+		case "height":
+			assign(&c.Height, v)
+		case "min_width":
+			assign(&c.MinWidth, v)
+		case "max_width":
+			assign(&c.MaxWidth, v)
+		case "min_height":
+			assign(&c.MinHeight, v)
+		case "max_height":
+			assign(&c.MaxHeight, v)
+		case "left":
+			assign(&c.Left, v)
+		case "top":
+			assign(&c.Top, v)
+		case "right":
+			assign(&c.Right, v)
+		case "bottom":
+			assign(&c.Bottom, v)
+		case "aspect_ratio":
+			assign(&c.AspectRatio, v)
+		case "size_change_interval":
+			assignPtr(&c.SizeChangeInterval, v)
+		case "auto_scroll":
+			assign(&c.AutoScroll, v)
+		case "scroll_interval":
+			assignPtr(&c.ScrollInterval, v)
+		case "route":
+			assign(&c.Route, v)
+		case "vertical_alignment":
+			assign(&c.VerticalAlignment, v)
+		case "horizontal_alignment":
+			assign(&c.HorizontalAlignment, v)
+		case "spacing":
+			assignPtr(&c.Spacing, v)
+		case "bgcolor":
+			assign(&c.Bgcolor, v)
+		case "fullscreen_dialog":
+			assign(&c.FullscreenDialog, v)
+		case "can_pop":
+			assignPtr(&c.CanPop, v)
+		}
+	}
+}
+
+func (c *View) handleEvent(e *Event) {
+	switch e.Name {
+	case "size_change":
+		if c.OnSizeChange != nil {
+			ev := &LayoutSizeChangeEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnSizeChange(ev)
+		}
+	case "animation_end":
+		if c.OnAnimationEnd != nil {
+			c.OnAnimationEnd(e)
+		}
+	case "scroll":
+		if c.OnScroll != nil {
+			ev := &OnScrollEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnScroll(ev)
+		}
+	case "confirm_pop":
+		if c.OnConfirmPop != nil {
+			c.OnConfirmPop(e)
 		}
 	}
 }

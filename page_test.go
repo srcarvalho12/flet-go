@@ -1,6 +1,7 @@
 package flet
 
 import (
+	"fmt"
 	"math/rand"
 	"reflect"
 	"slices"
@@ -16,6 +17,9 @@ type fakeClient struct {
 	t    *testing.T
 	root map[string]any
 	msgs int
+	page *Page
+	// calls records the client methods invoked (answered with nil).
+	calls []string
 }
 
 // toClient copies a value, turning lists into *[]any so they can be mutated.
@@ -82,6 +86,11 @@ func (fc *fakeClient) find(v any, id int64) map[string]any {
 
 func (fc *fakeClient) apply(msg protocol.Message) {
 	fc.t.Helper()
+	if msg.Action == protocol.ActionInvokeMethod {
+		fc.calls = append(fc.calls, fmt.Sprint(msg.Body["name"], " ", msg.Body["args"]))
+		go fc.page.handleMethodResult(map[string]any{"call_id": msg.Body["call_id"]})
+		return
+	}
 	fc.msgs++
 	if msg.Action != protocol.ActionPatchControl {
 		fc.t.Fatalf("unexpected action %d", msg.Action)
@@ -144,6 +153,7 @@ func (fc *fakeClient) apply(msg protocol.Message) {
 func newTestPage(t *testing.T) (*Page, *fakeClient) {
 	fc := &fakeClient{t: t}
 	p := newPage(fc.apply)
+	fc.page = p
 	return p, fc
 }
 

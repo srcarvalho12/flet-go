@@ -1,10 +1,8 @@
 package flet
 
 import (
-	"fmt"
 	"log"
 	"net"
-	"runtime/debug"
 	"sync"
 	"time"
 
@@ -197,26 +195,21 @@ func (s *session) register(body map[string]any) {
 	if isNew {
 		s.post(func() { s.srv.main(p) })
 	} else {
-		s.post(func() { p.fire(p.OnConnect) })
+		// A reloaded tab may be at another address (typed in the address
+		// bar): treat it as a route change.
+		route, _ := info["route"].(string)
+		s.post(func() {
+			p.fire(p.OnConnect)
+			if route != "" {
+				p.handlePageEvent(&Event{Control: p.root, Name: "route_change",
+					Data: map[string]any{"route": route}, Page: p})
+			}
+		})
 	}
 }
 
-// post runs fn on the page's queue. A panic is logged and shown in the client.
-func (s *session) post(fn func()) {
-	s.page.queue.post(func() {
-		defer func() {
-			if r := recover(); r != nil {
-				msg := fmt.Sprintf("%v\n\n%s", r, debug.Stack())
-				log.Printf("flet: panic: %s", msg)
-				s.send(protocol.Message{
-					Action: protocol.ActionSessionCrashed,
-					Body:   map[string]any{"message": msg},
-				})
-			}
-		}()
-		fn()
-	})
-}
+// post runs fn on the page's queue.
+func (s *session) post(fn func()) { s.page.Run(fn) }
 
 // connect attaches the page to a connection and returns the full page state.
 func (p *Page) connect(send func(protocol.Message), info map[string]any) map[string]any {

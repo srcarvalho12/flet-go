@@ -1,18 +1,8 @@
 package flet
 
 // The controls themselves are generated in controls_gen.go.
-// These are internal: the page root, its main view and the containers
-// the client expects under the page.
-
-// view is the main screen inside the page.
-type view struct {
-	controlBase
-	Controls []Control
-}
-
-func (v *view) kind() string                { return "View" }
-func (v *view) props() map[string]any       { return map[string]any{} }
-func (v *view) lists() map[string][]Control { return map[string][]Control{"controls": v.Controls} }
+// These are internal: the page root and the containers the client expects
+// under the page.
 
 // overlay holds the controls drawn above the page content.
 type overlay struct {
@@ -66,10 +56,12 @@ type pageRoot struct {
 func (r *pageRoot) kind() string { return "Page" }
 
 func (r *pageRoot) props() map[string]any {
-	m := map[string]any{}
+	m := r.page.PageProps.props()
 	setIf(m, "title", r.title)
 	return m
 }
+
+func (r *pageRoot) handleEvent(e *Event) { r.page.handlePageEvent(e) }
 
 func (r *pageRoot) lists() map[string][]Control { return map[string][]Control{"views": r.views} }
 

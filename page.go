@@ -12,8 +12,15 @@ import (
 
 // Page is the app window. It holds the control tree and sends changes.
 type Page struct {
+	// PageProps holds the page settings and events: Theme, DarkTheme,
+	// ThemeMode, Fonts, OnResize, OnKeyboardEvent, OnRouteChange...
+	PageProps
+
 	// Title is the window title.
 	Title string
+	// Views is the stack of screens; the last one is visible. Add, Remove
+	// and Clean work on the first one. A Router manages this list.
+	Views []*View
 	// Window is the native window (desktop only): size, position, methods
 	// such as Center and Close.
 	Window *Window
@@ -44,8 +51,12 @@ type Page struct {
 	mu    sync.Mutex
 	send  func(protocol.Message)
 	root  *pageRoot
-	view  *view
 	ready bool
+
+	// router, when set, builds Views from the route (see Router).
+	router *Router
+	// lastRoute avoids handling the same route change twice.
+	lastRoute string
 
 	// sent holds the last state sent for each control, used for diffing.
 	sent map[int64]*snapshot
@@ -57,6 +68,7 @@ type Page struct {
 	calls   calls
 	queue   queue
 	uploads *uploads
+	values  sessionValues
 }
 
 type snapshot struct {
@@ -66,20 +78,19 @@ type snapshot struct {
 }
 
 func newPage(send func(protocol.Message)) *Page {
-	v := &view{}
 	w := &Window{}
 	w.id = 2
 	p := &Page{
+		Views:  []*View{{}},
 		Window: w,
+		Route:  "/",
 		send:   send,
-		view:   v,
 		sent:   map[int64]*snapshot{},
 		index:  map[int64]Control{},
 	}
 	p.root = &pageRoot{
 		controlBase: controlBase{id: 1},
 		page:        p,
-		views:       []Control{v},
 		window:      w,
 		overlay:     &overlay{},
 		dialogs:     &dialogs{},
@@ -88,30 +99,40 @@ func newPage(send func(protocol.Message)) *Page {
 	return p
 }
 
-// Add appends controls to the screen and updates the page.
+// Add appends controls to the first view and updates the page.
 func (p *Page) Add(cs ...Control) {
 	p.mu.Lock()
-	p.view.Controls = append(p.view.Controls, cs...)
+	v := p.rootView()
+	v.Controls = append(v.Controls, cs...)
 	p.mu.Unlock()
 	p.Update()
 }
 
-// Remove removes controls from the screen and updates the page.
+// Remove removes controls from the first view and updates the page.
 func (p *Page) Remove(cs ...Control) {
 	p.mu.Lock()
-	p.view.Controls = slices.DeleteFunc(p.view.Controls, func(c Control) bool {
+	v := p.rootView()
+	v.Controls = slices.DeleteFunc(v.Controls, func(c Control) bool {
 		return slices.Contains(cs, c)
 	})
 	p.mu.Unlock()
 	p.Update()
 }
 
-// Clean removes all controls from the screen and updates the page.
+// Clean removes all controls from the first view and updates the page.
 func (p *Page) Clean() {
 	p.mu.Lock()
-	p.view.Controls = nil
+	p.rootView().Controls = nil
 	p.mu.Unlock()
 	p.Update()
+}
+
+// rootView returns the first view, creating it if needed. Call with mu held.
+func (p *Page) rootView() *View {
+	if len(p.Views) == 0 {
+		p.Views = []*View{{}}
+	}
+	return p.Views[0]
 }
 
 // ShowDialog opens a dialog (AlertDialog, BottomSheet, SnackBar, DatePicker...).
@@ -197,6 +218,12 @@ func (p *Page) initial() map[string]any {
 // sync copies the exported page fields into the internal tree.
 func (p *Page) sync() {
 	p.root.title = p.Title
+	p.root.views = p.root.views[:0]
+	for _, v := range p.Views {
+		if v != nil {
+			p.root.views = append(p.root.views, v)
+		}
+	}
 	if p.Window != nil {
 		p.Window.id = 2
 		p.root.window = p.Window

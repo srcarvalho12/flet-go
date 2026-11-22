@@ -50,7 +50,7 @@ type model struct {
 // Names handled by hand-written code or not generated yet.
 var reserved = map[string]bool{
 	"Event": true, "Control": true, "BaseControl": true, "Page": true, "BasePage": true,
-	"View": true, "Service": true, "ServiceRegistry": true, "MultiView": true,
+	"Service": true, "ServiceRegistry": true, "MultiView": true,
 	"IconData": true, "Colors": true, "CupertinoColors": true, "Duration": true,
 	"Ref": true, "KeyValue": true, "ValueKey": true, "ScrollKey": true,
 }
@@ -339,6 +339,9 @@ func (m *model) resolve(t *texpr, depth int) gtype {
 		}
 		return gtype{skip: "list of " + e.kind + e.skip}
 	case "dict", "Dict":
+		if len(t.args) == 2 && t.args[0].name == "str" && t.args[1].name == "str" {
+			return gtype{kind: kMap, goTyp: "map[string]string"}
+		}
 		return gtype{kind: kMap, goTyp: "map[string]any"}
 	case "ControlEventHandler":
 		return gtype{kind: kHandler, goTyp: "func(e *Event)"}
@@ -470,6 +473,7 @@ func enumConst(enum, member string) string {
 var initialisms = map[string]string{
 	"id": "ID", "url": "URL", "uri": "URI", "html": "HTML", "json": "JSON",
 	"api": "API", "svg": "SVG", "http": "HTTP", "https": "HTTPS", "ip": "IP", "ui": "UI",
+	"appbar": "AppBar",
 }
 
 // goName converts snake_case to CamelCase.

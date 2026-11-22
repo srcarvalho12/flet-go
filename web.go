@@ -20,6 +20,9 @@ import (
 	"github.com/srcarvalho12/flet-go/internal/protocol"
 )
 
+// EnvAssetsDir sets WebOptions.AssetsDir.
+const EnvAssetsDir = "FLET_ASSETS_DIR"
+
 // EnvSessionTimeout sets, in seconds, how long a web session is kept after
 // its browser tab disconnects (default 3600, like Flet).
 const EnvSessionTimeout = "FLET_SESSION_TIMEOUT"
@@ -35,6 +38,12 @@ type WebOptions struct {
 	// BasePath is the URL path the app is served under, e.g. "/app/".
 	// Default "/".
 	BasePath string
+	// AssetsDir is a folder with the app's own files (images, fonts, icons),
+	// served next to the app: "assets/logo.png" is used as
+	// &flet.Image{Src: "logo.png"}. Its files take precedence over the web
+	// client's, so it can replace favicon.png, icons/ or manifest.json.
+	// Also set by FLET_ASSETS_DIR.
+	AssetsDir string
 	// UploadDir enables uploads from FilePicker.Upload: files sent to the
 	// URLs made by Page.GetUploadURL are saved under this folder.
 	UploadDir string
@@ -71,12 +80,32 @@ func Handler(main func(page *Page), opts ...WebOptions) (http.Handler, error) {
 		o = opts[0]
 	}
 	base := normalizeBase(o.BasePath)
+	if v := os.Getenv(EnvAssetsDir); v != "" {
+		o.AssetsDir = v
+	}
+	assets := ""
+	if o.AssetsDir != "" {
+		if abs, err := filepath.Abs(o.AssetsDir); err == nil {
+			o.AssetsDir = abs
+		}
+		info, err := os.Stat(o.AssetsDir)
+		if err != nil || !info.IsDir() {
+			return nil, fmt.Errorf("flet: assets dir %q is not a folder", o.AssetsDir)
+		}
+		assets = o.AssetsDir
+	}
 
 	dir, err := client.ResolveWeb()
 	if err != nil {
 		return nil, err
 	}
-	index, err := os.ReadFile(filepath.Join(dir, "index.html"))
+	indexPath := filepath.Join(dir, "index.html")
+	if assets != "" {
+		if _, err := os.Stat(filepath.Join(assets, "index.html")); err == nil {
+			indexPath = filepath.Join(assets, "index.html")
+		}
+	}
+	index, err := os.ReadFile(indexPath)
 	if err != nil {
 		return nil, fmt.Errorf("flet: web client: %w", err)
 	}
@@ -96,7 +125,7 @@ func Handler(main func(page *Page), opts ...WebOptions) (http.Handler, error) {
 			return nil, err
 		}
 	}
-	return &webHandler{srv: srv, dir: dir, base: base, index: patchIndex(index, base)}, nil
+	return &webHandler{srv: srv, dirs: nonEmpty(assets, dir), base: base, index: patchIndex(index, base)}, nil
 }
 
 // normalizeBase turns "app", "/app" or "/app/" into "/app/".
@@ -124,10 +153,21 @@ func patchIndex(index []byte, base string) []byte {
 var baseTag = regexp.MustCompile(`(?i)<base\b[^>]*>`)
 
 type webHandler struct {
-	srv   *server
-	dir   string
+	srv *server
+	// dirs are searched in order: the app's assets, then the web client.
+	dirs  []string
 	base  string
 	index []byte
+}
+
+func nonEmpty(s ...string) []string {
+	var out []string
+	for _, x := range s {
+		if x != "" {
+			out = append(out, x)
+		}
+	}
+	return out
 }
 
 func (h *webHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -155,10 +195,12 @@ func (h *webHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.serveIndex(w)
 		return
 	}
-	file := filepath.Join(h.dir, filepath.FromSlash(p))
-	if info, err := os.Stat(file); err == nil && !info.IsDir() {
-		http.ServeFile(w, r, file)
-		return
+	for _, dir := range h.dirs {
+		file := filepath.Join(dir, filepath.FromSlash(p))
+		if info, err := os.Stat(file); err == nil && !info.IsDir() {
+			http.ServeFile(w, r, file)
+			return
+		}
 	}
 	// App routes such as /settings load the app; missing assets are a 404.
 	if path.Ext(p) == "" {

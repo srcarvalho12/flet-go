@@ -25,6 +25,7 @@ func main() {
 		func() error { return m.emitEvents(*out) },
 		func() error { return m.emitControls(*out) },
 		func() error { return m.emitMethods(*out, m.allMethods()) },
+		func() error { return m.emitPage(*out) },
 		func() error { return m.emitColors(*out) },
 		func() error { return m.emitIcons(filepath.Dir(*specPath), *out) },
 	}

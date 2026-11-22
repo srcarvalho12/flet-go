@@ -318,3 +318,35 @@ func TestUploads(t *testing.T) {
 }
 
 func newTestPageNoT() *Page { return newPage(func(protocol.Message) {}) }
+
+func TestWebAssets(t *testing.T) {
+	assets := t.TempDir()
+	os.WriteFile(filepath.Join(assets, "logo.png"), []byte("logo"), 0o644)
+	os.WriteFile(filepath.Join(assets, "app.js"), []byte("override"), 0o644)
+	os.MkdirAll(filepath.Join(assets, "assets"), 0o755)
+	os.WriteFile(filepath.Join(assets, "assets", "app.js"), []byte("override"), 0o644)
+	t.Setenv(EnvAssetsDir, "")
+	ts, _ := newWebServer(t, func(*Page) {}, WebOptions{AssetsDir: assets})
+
+	if code, body := get(t, ts.URL+"/logo.png"); code != 200 || body != "logo" {
+		t.Errorf("app asset: %d %q", code, body)
+	}
+	if code, body := get(t, ts.URL+"/assets/app.js"); code != 200 || body != "override" {
+		t.Errorf("app assets should take precedence: %d %q", code, body)
+	}
+	// Paths are cleaned inside the folders: this is an app route, not a file.
+	if _, body := get(t, ts.URL+"/../../etc/passwd"); body != testIndex {
+		t.Errorf("a path with .. escaped the folders: %q", body)
+	}
+
+	// A custom index.html in the assets folder replaces the client's.
+	os.WriteFile(filepath.Join(assets, "index.html"), []byte(`<base href="/">custom`), 0o644)
+	ts2, _ := newWebServer(t, func(*Page) {}, WebOptions{AssetsDir: assets})
+	if _, body := get(t, ts2.URL+"/"); body != `<base href="/">custom` {
+		t.Errorf("custom index not used: %q", body)
+	}
+
+	if _, err := Handler(func(*Page) {}, WebOptions{AssetsDir: filepath.Join(assets, "missing")}); err == nil {
+		t.Error("a missing assets folder should fail")
+	}
+}

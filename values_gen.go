@@ -5642,14 +5642,14 @@ type Theme struct {
 	FontFamily string `msgpack:"font_family,omitempty"`
 	// UseMaterial3: A temporary flag that can be used to opt-out of Material 3 features.
 	UseMaterial3 bool `msgpack:"use_material3,omitempty"`
-	// AppbarTheme: Customizes the appearance of descendant `AppBar` controls.
-	AppbarTheme *AppBarTheme `msgpack:"appbar_theme,omitempty"`
+	// AppBarTheme: Customizes the appearance of descendant `AppBar` controls.
+	AppBarTheme *AppBarTheme `msgpack:"appbar_theme,omitempty"`
 	// BadgeTheme: Customizes the appearance of descendant `Badge` controls.
 	BadgeTheme *BadgeTheme `msgpack:"badge_theme,omitempty"`
 	// BannerTheme: Customizes the appearance of descendant `Banner` controls.
 	BannerTheme *BannerTheme `msgpack:"banner_theme,omitempty"`
-	// BottomAppbarTheme: Customizes the appearance of descendant `BottomAppBar` controls.
-	BottomAppbarTheme *BottomAppBarTheme `msgpack:"bottom_appbar_theme,omitempty"`
+	// BottomAppBarTheme: Customizes the appearance of descendant `BottomAppBar` controls.
+	BottomAppBarTheme *BottomAppBarTheme `msgpack:"bottom_appbar_theme,omitempty"`
 	// BottomSheetTheme: Customizes the appearance of descendant `BottomSheet` controls.
 	BottomSheetTheme *BottomSheetTheme `msgpack:"bottom_sheet_theme,omitempty"`
 	// CardTheme: Customizes the appearance of descendant `Card` controls.
@@ -5793,8 +5793,8 @@ func (v *Theme) toMap() map[string]any {
 	setIf(m, "surfaces", v.Surfaces)
 	setIf(m, "font_family", v.FontFamily)
 	setIf(m, "use_material3", v.UseMaterial3)
-	if v.AppbarTheme != nil {
-		m["appbar_theme"] = v.AppbarTheme.toMap()
+	if v.AppBarTheme != nil {
+		m["appbar_theme"] = v.AppBarTheme.toMap()
 	}
 	if v.BadgeTheme != nil {
 		m["badge_theme"] = v.BadgeTheme.toMap()
@@ -5802,8 +5802,8 @@ func (v *Theme) toMap() map[string]any {
 	if v.BannerTheme != nil {
 		m["banner_theme"] = v.BannerTheme.toMap()
 	}
-	if v.BottomAppbarTheme != nil {
-		m["bottom_appbar_theme"] = v.BottomAppbarTheme.toMap()
+	if v.BottomAppBarTheme != nil {
+		m["bottom_appbar_theme"] = v.BottomAppBarTheme.toMap()
 	}
 	if v.BottomSheetTheme != nil {
 		m["bottom_sheet_theme"] = v.BottomSheetTheme.toMap()
@@ -6407,7 +6407,7 @@ type WebViewConfiguration struct {
 	// EnableDomStorage: Whether DOM storage is enabled.
 	EnableDomStorage *bool `msgpack:"enable_dom_storage,omitempty"`
 	// Headers: Additional HTTP headers to include with the request.
-	Headers map[string]any `msgpack:"headers,omitempty"`
+	Headers map[string]string `msgpack:"headers,omitempty"`
 }
 
 func (v *WebViewConfiguration) toMap() map[string]any {

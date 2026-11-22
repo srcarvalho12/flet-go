@@ -242,3 +242,33 @@ func TestOverlayAndWindow(t *testing.T) {
 		t.Fatalf("window width = %v", p.Window.Width)
 	}
 }
+
+// A tab reloaded at another address reconnects to its session and shows
+// that address.
+func TestReconnectAtAnotherRoute(t *testing.T) {
+	r := NewRouter()
+	r.Route("/", func(*RouteContext) Control { return &Text{Value: "home"} })
+	r.Route("/other", func(*RouteContext) Control { return &Text{Value: "other"} })
+	srv := newServer(r.Main, false)
+
+	c := dial(t, srv)
+	sid := c.register("").Body["session_id"].(string)
+	c.next(protocol.ActionPatchControl)
+	c.conn.Close()
+
+	c2 := dial(t, srv)
+	c2.send(protocol.ActionRegisterClient, map[string]any{
+		"session_id": sid,
+		"page":       map[string]any{"route": "/other"},
+	})
+	c2.next(protocol.ActionRegisterClient)
+	c2.next(protocol.ActionPatchControl)
+	srv.mu.Lock()
+	p := srv.pages[sid].page
+	srv.mu.Unlock()
+	done := make(chan string)
+	p.Run(func() { done <- texts(p.Views[0]) })
+	if got := <-done; got != "other" {
+		t.Fatalf("reconnected tab shows %q, want other", got)
+	}
+}

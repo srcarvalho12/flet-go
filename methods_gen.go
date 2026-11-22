@@ -1028,6 +1028,57 @@ func (c *UrlLauncher) SupportsCloseForLaunchMode(mode LaunchMode) (bool, error) 
 	return invokeResult[bool](&c.controlBase, "supports_close_for_launch_mode", m)
 }
 
+// ConfirmPop resolves a pending pop-confirmation request for this view.
+func (c *View) ConfirmPop(shouldPop bool) error {
+	m := map[string]any{}
+	m["should_pop"] = encodeArg(shouldPop)
+	_, err := c.invoke("confirm_pop", m)
+	return err
+}
+
+// ShowDrawer show the drawer.
+func (c *View) ShowDrawer() error {
+	_, err := c.invoke("show_drawer", nil)
+	return err
+}
+
+// CloseDrawer close the drawer.
+func (c *View) CloseDrawer() error {
+	_, err := c.invoke("close_drawer", nil)
+	return err
+}
+
+// ShowEndDrawer show the end drawer.
+func (c *View) ShowEndDrawer() error {
+	_, err := c.invoke("show_end_drawer", nil)
+	return err
+}
+
+// CloseEndDrawer close the end drawer.
+func (c *View) CloseEndDrawer() error {
+	_, err := c.invoke("close_end_drawer", nil)
+	return err
+}
+
+// ScrollTo moves the scroll position.
+func (c *View) ScrollTo(opts ...ScrollToOptions) error {
+	m := map[string]any{}
+	if len(opts) > 0 {
+		o := opts[0]
+		setIf(m, "offset", o.Offset)
+		setIf(m, "delta", o.Delta)
+		if o.ScrollKey != nil {
+			m["scroll_key"] = encodeAny(o.ScrollKey)
+		}
+		if o.Duration != 0 {
+			m["duration"] = o.Duration.Milliseconds()
+		}
+		setIf(m, "curve", o.Curve)
+	}
+	_, err := c.invoke("scroll_to", m)
+	return err
+}
+
 // Enable keeps the device awake.
 func (c *Wakelock) Enable() error {
 	_, err := c.invoke("enable", nil)
