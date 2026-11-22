@@ -1,13 +1,13 @@
 package flet
 
-// Event é um evento vindo do cliente, como um clique.
+// Event is an event coming from the client, such as a click.
 type Event struct {
-	// Control é o controle que gerou o evento.
+	// Control is the control that fired the event.
 	Control Control
-	// Name é o nome do evento sem o prefixo "on_" (ex.: "click").
+	// Name is the event name without the "on_" prefix (e.g. "click").
 	Name string
-	// Data traz dados extras do evento, quando houver.
+	// Data holds extra event data, when there is any.
 	Data any
-	// Page é a página do evento.
+	// Page is the page the event belongs to.
 	Page *Page
 }

@@ -1,4 +1,4 @@
-// Contador: um texto e um botão "+1".
+// Counter: a text and a "+1" button.
 package main
 
 import (
@@ -10,7 +10,7 @@ import (
 
 func main() {
 	err := flet.App(func(page *flet.Page) {
-		page.Title = "Contador"
+		page.Title = "Counter"
 		count := 0
 		txt := &flet.Text{Value: "0", Size: 40}
 

@@ -1,26 +1,22 @@
-// Package client localiza e abre o cliente Flet (o app Flutter que desenha a tela).
+// Package client locates, downloads and launches the Flet client
+// (the Flutter app that renders the UI).
 package client
 
 import (
-	"errors"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"strings"
 )
 
-// EnvPath é a variável de ambiente com o caminho do cliente Flet.
-// No macOS pode apontar para o Flet.app ou direto para o executável.
+// EnvPath is the environment variable pointing to an installed Flet client.
+// It can point to the folder, to Flet.app or directly to the executable.
+// When unset, the client is downloaded and cached.
 const EnvPath = "FLET_CLIENT_PATH"
 
-// Start abre o cliente apontando para o endereço do servidor Go.
+// Start launches the client pointing it to the Go server address.
 func Start(url string, debug bool) (*exec.Cmd, error) {
-	path := os.Getenv(EnvPath)
-	if path == "" {
-		return nil, errors.New("defina " + EnvPath + " com o caminho do cliente Flet (ex.: /caminho/Flet.app)")
-	}
-	if strings.HasSuffix(path, ".app") {
-		path = filepath.Join(path, "Contents", "MacOS", "Flet")
+	path, err := Resolve()
+	if err != nil {
+		return nil, err
 	}
 	cmd := exec.Command(path, url)
 	if debug {

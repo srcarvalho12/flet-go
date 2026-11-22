@@ -1,6 +1,6 @@
 package flet
 
-// Text mostra um texto.
+// Text displays a piece of text.
 type Text struct {
 	controlBase
 	Value string
@@ -18,7 +18,7 @@ func (t *Text) props() map[string]any {
 	return m
 }
 
-// Button é um botão com texto.
+// Button is a button with a text label.
 type Button struct {
 	controlBase
 	Content string
@@ -42,7 +42,7 @@ func (b *Button) handleEvent(e Event) {
 	}
 }
 
-// Column empilha controles na vertical.
+// Column stacks controls vertically.
 type Column struct {
 	controlBase
 	Controls []Control
@@ -52,7 +52,7 @@ func (c *Column) kind() string                { return "Column" }
 func (c *Column) props() map[string]any       { return map[string]any{} }
 func (c *Column) lists() map[string][]Control { return map[string][]Control{"controls": c.Controls} }
 
-// Row alinha controles na horizontal.
+// Row lays out controls horizontally.
 type Row struct {
 	controlBase
 	Controls []Control
@@ -62,7 +62,7 @@ func (r *Row) kind() string                { return "Row" }
 func (r *Row) props() map[string]any       { return map[string]any{} }
 func (r *Row) lists() map[string][]Control { return map[string][]Control{"controls": r.Controls} }
 
-// view é a tela principal dentro da página.
+// view is the main screen inside the page.
 type view struct {
 	controlBase
 	Controls []Control
@@ -72,7 +72,7 @@ func (v *view) kind() string                { return "View" }
 func (v *view) props() map[string]any       { return map[string]any{} }
 func (v *view) lists() map[string][]Control { return map[string][]Control{"controls": v.Controls} }
 
-// pageRoot é o controle raiz (id fixo 1 no cliente).
+// pageRoot is the root control (fixed id 1 in the client).
 type pageRoot struct {
 	controlBase
 	title string

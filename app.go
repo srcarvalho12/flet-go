@@ -9,11 +9,11 @@ import (
 	"github.com/srcarvalho12/flet-go/internal/client"
 )
 
-// EnvDebug ativa o log das mensagens trocadas com o cliente.
+// EnvDebug enables logging of the messages exchanged with the client.
 const EnvDebug = "FLETGO_DEBUG"
 
-// App abre o cliente Flet e roda main quando ele se conectar.
-// Retorna quando a janela é fechada.
+// App launches the Flet client and runs main once it connects.
+// It returns when the window is closed.
 func App(main func(page *Page)) error {
 	debug := os.Getenv(EnvDebug) != ""
 
@@ -27,7 +27,7 @@ func App(main func(page *Page)) error {
 	if err != nil {
 		return err
 	}
-	// Se o cliente fechar antes de conectar, destrava o Accept.
+	// If the client exits before connecting, unblock Accept.
 	exited := make(chan struct{})
 	go func() {
 		cmd.Wait()
@@ -37,7 +37,7 @@ func App(main func(page *Page)) error {
 
 	conn, err := ln.Accept()
 	if err != nil {
-		return errors.New("flet: o cliente fechou antes de conectar")
+		return errors.New("flet: the client exited before connecting")
 	}
 	defer conn.Close()
 

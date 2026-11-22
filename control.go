@@ -1,22 +1,22 @@
-// Package flet permite escrever interfaces em Go desenhadas pelo cliente Flet.
+// Package flet lets you write user interfaces in Go, rendered by the Flet client.
 package flet
 
 import "sync/atomic"
 
-// Control é qualquer elemento da árvore de interface.
+// Control is any element of the UI tree.
 type Control interface {
 	base() *controlBase
-	// kind é o nome do controle no cliente Dart (ex.: "Text").
+	// kind is the control name in the Dart client (e.g. "Text").
 	kind() string
-	// props são as propriedades simples (texto, número, bool, on_*).
+	// props are the simple properties (text, number, bool, on_*).
 	props() map[string]any
-	// lists são as propriedades que guardam filhos (ex.: "controls").
+	// lists are the properties that hold children (e.g. "controls").
 	lists() map[string][]Control
-	// handleEvent despacha um evento vindo do cliente.
+	// handleEvent dispatches an event coming from the client.
 	handleEvent(e Event)
 }
 
-// IDs 1 e 2 são reservados pelo cliente para Page e Window.
+// IDs 1 and 2 are reserved by the client for Page and Window.
 var idCounter atomic.Int64
 
 func init() { idCounter.Store(2) }
@@ -32,13 +32,13 @@ func (b *controlBase) base() *controlBase {
 	return b
 }
 
-// ID devolve o identificador do controle no protocolo.
+// ID returns the control identifier used by the protocol.
 func (b *controlBase) ID() int64 { return b.base().id }
 
 func (b *controlBase) lists() map[string][]Control { return nil }
 func (b *controlBase) handleEvent(Event)           {}
 
-// encode transforma o controle (e seus filhos) no mapa enviado ao cliente.
+// encode turns the control (and its children) into the map sent to the client.
 func encode(c Control) map[string]any {
 	m := map[string]any{
 		"_c": c.kind(),
@@ -61,8 +61,8 @@ func encodeList(cs []Control) []any {
 	return out
 }
 
-// setIf adiciona a propriedade só quando ela não é o valor zero,
-// como o SDK Python faz (só envia o que difere do padrão).
+// setIf adds the property only when it is not the zero value,
+// like the Python SDK does (it only sends what differs from the default).
 func setIf[T comparable](m map[string]any, key string, v T) {
 	var zero T
 	if v != zero {

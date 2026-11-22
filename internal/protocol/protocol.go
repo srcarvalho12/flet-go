@@ -1,11 +1,11 @@
-// Package protocol implementa o protocolo de mensagens do cliente Flet.
+// Package protocol implements the Flet client message protocol.
 //
-// Cada pacote no socket tem o formato:
+// Every packet on the socket has the format:
 //
-//	[tamanho:u32 LE][tipo:u8][corpo]
+//	[length:u32 LE][type:u8][body]
 //
-// tipo 0x00 = mensagem MessagePack no formato [ação, corpo].
-// tipo 0x01 = canal de dados binário (ignorado por enquanto).
+// type 0x00 = MessagePack message in the form [action, body].
+// type 0x01 = binary data channel (ignored for now).
 package protocol
 
 import (
@@ -17,7 +17,7 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-// Ações do protocolo. Devem bater com MessageAction do cliente Dart.
+// Protocol actions. Must match MessageAction in the Dart client.
 const (
 	ActionRegisterClient     = 1
 	ActionPatchControl       = 2
@@ -27,7 +27,7 @@ const (
 	ActionSessionCrashed     = 6
 )
 
-// Tipos de operação de patch.
+// Patch operation types.
 const (
 	OpReplace = 0
 	OpAdd     = 1
@@ -40,17 +40,17 @@ const (
 	packetDataChannel = 0x01
 )
 
-// Message é um quadro do protocolo.
+// Message is a protocol frame.
 type Message struct {
 	Action int
 	Body   map[string]any
 }
 
-// Write codifica a mensagem e escreve o pacote completo em w.
+// Write encodes the message and writes the full packet to w.
 func Write(w io.Writer, m Message) error {
 	body, err := msgpack.Marshal([]any{m.Action, m.Body})
 	if err != nil {
-		return fmt.Errorf("protocol: codificar mensagem: %w", err)
+		return fmt.Errorf("protocol: encode message: %w", err)
 	}
 	packet := make([]byte, 4+1+len(body))
 	binary.LittleEndian.PutUint32(packet[0:4], uint32(1+len(body)))
@@ -60,7 +60,7 @@ func Write(w io.Writer, m Message) error {
 	return err
 }
 
-// Read lê o próximo pacote de mensagem. Pacotes de canal de dados são ignorados.
+// Read reads the next message packet. Data channel packets are skipped.
 func Read(r io.Reader) (Message, error) {
 	for {
 		var header [4]byte
@@ -87,21 +87,21 @@ func decode(b []byte) (Message, error) {
 	dec.UseLooseInterfaceDecoding(true)
 	v, err := dec.DecodeInterface()
 	if err != nil {
-		return Message{}, fmt.Errorf("protocol: decodificar mensagem: %w", err)
+		return Message{}, fmt.Errorf("protocol: decode message: %w", err)
 	}
 	frame, ok := v.([]any)
 	if !ok || len(frame) != 2 {
-		return Message{}, fmt.Errorf("protocol: quadro inválido: %v", v)
+		return Message{}, fmt.Errorf("protocol: invalid frame: %v", v)
 	}
 	action, ok := ToInt64(frame[0])
 	if !ok {
-		return Message{}, fmt.Errorf("protocol: ação inválida: %v", frame[0])
+		return Message{}, fmt.Errorf("protocol: invalid action: %v", frame[0])
 	}
 	body, _ := frame[1].(map[string]any)
 	return Message{Action: int(action), Body: body}, nil
 }
 
-// ToInt64 converte qualquer número decodificado do MessagePack em int64.
+// ToInt64 converts any number decoded from MessagePack to int64.
 func ToInt64(v any) (int64, bool) {
 	switch n := v.(type) {
 	case int64:

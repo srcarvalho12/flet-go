@@ -8,7 +8,7 @@ import (
 	"github.com/srcarvalho12/flet-go/internal/protocol"
 )
 
-// session é a conversa com um cliente conectado.
+// session is the conversation with one connected client.
 type session struct {
 	conn  net.Conn
 	main  func(*Page)
@@ -21,14 +21,14 @@ func (s *session) send(m protocol.Message) {
 	s.wmu.Lock()
 	defer s.wmu.Unlock()
 	if s.debug {
-		log.Printf("→ ação %d: %v", m.Action, m.Body)
+		log.Printf("→ action %d: %v", m.Action, m.Body)
 	}
 	if err := protocol.Write(s.conn, m); err != nil {
-		log.Printf("flet: erro ao enviar: %v", err)
+		log.Printf("flet: send error: %v", err)
 	}
 }
 
-// run lê mensagens até a conexão fechar.
+// run reads messages until the connection closes.
 func (s *session) run() error {
 	for {
 		m, err := protocol.Read(s.conn)
@@ -36,7 +36,7 @@ func (s *session) run() error {
 			return err
 		}
 		if s.debug {
-			log.Printf("← ação %d: %v", m.Action, m.Body)
+			log.Printf("← action %d: %v", m.Action, m.Body)
 		}
 		s.handle(m)
 	}
@@ -69,6 +69,6 @@ func (s *session) handle(m protocol.Message) {
 		c.handleEvent(Event{Control: c, Name: name, Data: m.Body["data"], Page: s.page})
 
 	case protocol.ActionUpdateControlProps:
-		// Ex.: tamanho da janela. Ainda não tratado no protótipo.
+		// E.g. window size. Not handled in the prototype yet.
 	}
 }
