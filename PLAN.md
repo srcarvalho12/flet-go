@@ -200,7 +200,8 @@ It proves:
 
 ```
 app.go              → desktop: launches the client and accepts its connections
-web.go              → web: serves the web client and the WebSocket
+web.go              → web: serves the web client and the WebSocket, base path
+uploads.go          → web: signed upload URLs and the upload endpoint
 page.go             → tree, diff, dialogs and sending changes
 session.go          → client messages, sessions and reconnection
 invoke.go           → client method calls and the event queue
@@ -221,6 +222,7 @@ examples/list/      → add, remove and reorder list items
 examples/gallery/   → sample of generated controls and inputs
 examples/services/  → dialogs, snack bar, focus, clipboard, file picker, window
 examples/web/       → the counter served to the browser
+examples/upload/    → file uploads, served under /app/
 ```
 
 `page_test.go` includes a fake client that applies patches the same way the Dart client does, so the diff can be tested without opening a window.
@@ -241,18 +243,24 @@ Optional environment variables:
 | `FLET_WEB_PATH` | Use an extracted web client folder |
 | `FLET_WEB_URL` | Download the web client from another URL |
 | `FLET_SESSION_TIMEOUT` | Seconds a web session is kept after its tab disconnects (default 3600) |
+| `FLET_MAX_UPLOAD_SIZE` | Maximum size of each uploaded file, in bytes |
+| `FLET_SECRET_KEY` | Key that signs upload URLs |
 
 Automatic download: macOS and Windows. On Linux, use `FLET_CLIENT_PATH` for now. The web client downloads on any OS.
 
 ### Web (phase 4)
 
-Replace `flet.App(main)` with `flet.Serve(":8550", main)` and open `http://localhost:8550`. To mount it in your own server, use `flet.Handler(main)`, which returns an `http.Handler` (root path only for now).
+Replace `flet.App(main)` with `flet.Serve(":8550", main)` and open `http://localhost:8550`. To mount it in your own server, use `flet.Handler(main)`, which returns an `http.Handler`.
+
+Options go in `flet.WebOptions` (all optional): `BasePath`, `UploadDir`, `MaxUploadSize`, `SecretKey`.
 
 - **Web client:** `flet-web.tar.gz` from the Flet release, downloaded and cached on the first run (on macOS: `~/Library/Caches/flet-go/web/v1.1.2`).
 - **Transport:** a WebSocket at `/ws` (library: `github.com/coder/websocket`). Each binary message is one packet, `[type:u8][body]`, with no length prefix.
 - **Files:** existing files are served as is; paths without an extension (app routes) get `index.html`; missing assets are a 404. Folders are not listed.
 - **Sessions:** each browser tab is a session with its own page. A reloaded tab gets its page back. A disconnected session is dropped after `FLET_SESSION_TIMEOUT`, and `page.OnClose` runs.
 - **Page info:** `page.Web`, `page.ClientIP` and `page.ClientUserAgent`; `page.OnConnect` and `page.OnDisconnect` follow the connection.
+- **Base path:** with `BasePath: "/app/"` the app is served under `/app/` (mount it with `mux.Handle("/app/", h)`). The handler rewrites `index.html` so assets and the WebSocket use that path; `/app` redirects to `/app/`.
+- **Uploads:** with `UploadDir` set, `page.GetUploadURL(name, expires)` returns a URL for `FilePicker.Upload`. The URL is signed with HMAC-SHA256 and works for that file name until it expires. Files are written with `os.Root`, so they cannot leave the upload folder (even through symbolic links), and only appear once complete. Progress arrives in `FilePicker.OnUpload`.
 - **Security:** the WebSocket only accepts pages from the same host (default origin check).
 
 Checked in the browser: the counter works, a reload keeps the count, a second tab has its own count, and there are no console errors.
@@ -283,6 +291,8 @@ Type mapping rules:
 
 Properties changed on the client (e.g. `TextField.value` while typing) are applied back to the Go struct.
 
+Value types follow the Python encoding: `@value` types send only what differs from the default, while plain `@dataclass` types (e.g. `FilePickerUploadFile`) always send their defaults, because the client expects them (e.g. `method: "PUT"`).
+
 Client methods (e.g. `focus()`, `Clipboard.get()`) become blocking Go methods that return an error, plus the result when there is one:
 
 | Python | Go |
@@ -307,8 +317,7 @@ Required parameters are positional; optional ones go in an `...Options` struct. 
 
 - Events are handled one at a time, in arrival order. A handler waiting on a slow method (e.g. the file picker) holds back the next events.
 - Desktop sessions are kept while the window is open; web sessions expire (see "Web").
-- `flet.Handler` must be mounted at the root path; a base path (e.g. `/app/`) is not supported yet.
-- No file uploads (`FilePicker.Upload`) on the web yet: they need an upload endpoint.
+- Without `FLET_SECRET_KEY` (or `SecretKey`), upload URLs stop working when the server restarts.
 - Page events (`on_resize`, `on_route_change`...), routing and page methods (`push_route`, `get_device_info`) are not exposed yet.
 - `Share` methods are not generated yet.
 - Automatic download not yet tested on Windows and not supported on Linux.

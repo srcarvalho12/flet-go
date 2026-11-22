@@ -245,6 +245,10 @@ def parse_class(cls, module):
             entry["dart_name"] = literal(d.args[0])
     elif VALUE_DECORATORS & decos.keys():
         entry["kind"] = "value"
+        # Plain @dataclass values are sent with all their non-None fields,
+        # defaults included; @value types only send what differs.
+        if "dataclass" in decos and not ({"value", "_lazy_value"} & decos.keys()):
+            entry["plain_dataclass"] = True
     else:
         entry["kind"] = "class"
 

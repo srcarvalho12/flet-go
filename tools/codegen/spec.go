@@ -24,6 +24,8 @@ type Class struct {
 	Fields   []*Field  `json:"fields"`
 	Members  []*Member `json:"members"`
 	Methods  []*Method `json:"methods"`
+	// PlainDataclass values send their defaults too (see extract.py).
+	PlainDataclass bool `json:"plain_dataclass"`
 }
 
 // Field is an annotated class attribute.

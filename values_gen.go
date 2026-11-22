@@ -820,7 +820,7 @@ func (v *BrowserConfiguration) toMap() map[string]any {
 		return nil
 	}
 	m := map[string]any{}
-	setIf(m, "show_title", v.ShowTitle)
+	m["show_title"] = v.ShowTitle
 	return m
 }
 
@@ -1987,6 +1987,8 @@ func (v *FilePickerUploadFile) toMap() map[string]any {
 	m["upload_url"] = v.UploadURL
 	if v.Method != nil {
 		m["method"] = *v.Method
+	} else {
+		m["method"] = "PUT"
 	}
 	setIf(m, "id", v.ID)
 	setIf(m, "name", v.Name)
@@ -3868,7 +3870,7 @@ func (v *PageMediaData) toMap() map[string]any {
 	}
 	m["device_pixel_ratio"] = v.DevicePixelRatio
 	m["orientation"] = v.Orientation
-	setIf(m, "always_use_24_hour_format", v.AlwaysUse24HourFormat)
+	m["always_use_24_hour_format"] = v.AlwaysUse24HourFormat
 	return m
 }
 
@@ -5446,8 +5448,12 @@ func (v *TextSelection) toMap() map[string]any {
 	m := map[string]any{}
 	m["base_offset"] = v.BaseOffset
 	m["extent_offset"] = v.ExtentOffset
-	setIf(m, "affinity", v.Affinity)
-	setIf(m, "directional", v.Directional)
+	if v.Affinity != "" {
+		m["affinity"] = v.Affinity
+	} else {
+		m["affinity"] = TextAffinityDownstream
+	}
+	m["directional"] = v.Directional
 	return m
 }
 
@@ -6411,9 +6417,13 @@ func (v *WebViewConfiguration) toMap() map[string]any {
 	m := map[string]any{}
 	if v.EnableJavascript != nil {
 		m["enable_javascript"] = *v.EnableJavascript
+	} else {
+		m["enable_javascript"] = true
 	}
 	if v.EnableDomStorage != nil {
 		m["enable_dom_storage"] = *v.EnableDomStorage
+	} else {
+		m["enable_dom_storage"] = true
 	}
 	if len(v.Headers) > 0 {
 		m["headers"] = maps.Clone(v.Headers)

@@ -248,6 +248,12 @@ func (m *model) fields(name string, stopAt map[string]bool) []*field {
 				m.report["unsupported default override"]++
 			}
 		}
+		// Plain dataclasses always send fields with a non-None default, so
+		// an unset Go field sends the Python default.
+		if c := m.classes[name]; c != nil && c.PlainDataclass && f.override == "" &&
+			f.hasDefault() && f.defaultValue() != "None" && f.Default != nil {
+			f.override = m.literal(f, f.defaultValue())
+		}
 		if f.pointer {
 			f.typ.goTyp = "*" + f.typ.goTyp
 		}

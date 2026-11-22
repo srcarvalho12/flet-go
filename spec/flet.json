@@ -377,6 +377,7 @@
    "bases": [],
    "doc": "Base class for all Flet controls and services.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "_values",
@@ -446,6 +447,7 @@
    "bases": [],
    "doc": "Represents the environmental metrics of a page or window.\n\nThis data is updated whenever the platform window or layout changes,\nsuch as when rotating a device, resizing a browser window, or adjusting\nsystem UI elements like the keyboard or safe areas.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "padding",
@@ -499,6 +501,7 @@
    ],
    "doc": "Event fired when the size of the containing window or browser is changed.\n\nTypically used to adapt layout dynamically in response to resizes,\nsuch as switching between compact and expanded views in a responsive design.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "width",
@@ -1576,6 +1579,7 @@
    "bases": [],
    "doc": "Base class for actions performed by the client, without a round trip to your\nPython code.\n\nAssign one - or a list of them - to the `action` property of a control such\nas :class:`~flet.Button`, and it runs the moment the control is activated.\n\nBrowsers only allow a page to open a file picker, write to the clipboard,\nshow a share sheet or open a new tab while the user's click or key press is\nstill being handled. Sending the click to your Python code and acting on the\nreply takes longer than that permission lasts, so on iOS Safari those\noperations are silently ignored, while Android and desktop browsers let them\nthrough. Client actions close that gap by performing the operation on the\nclient, inside the original gesture.\n\nBecause an action runs before your code sees the click, its arguments have to\nbe known in advance. To act on a value that is only computed at click time,\nset it on the control ahead of the click instead.\n\nNote:\n    Actions are not constructed directly - use one of the subclasses, each of\n    which lives alongside the service it drives:\n    :class:`~flet.OpenUrl`, :class:`~flet.CopyToClipboard`,\n    :class:`~flet.PickFiles` and :class:`~flet.ShareText`.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "service_id",
@@ -3070,6 +3074,7 @@
    ],
    "doc": "Base class for controls.\n\nNot meant to be used directly.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "expand",
@@ -3144,6 +3149,7 @@
    ],
    "doc": "Base event payload passed to control event handlers.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "name",
@@ -3771,6 +3777,7 @@
    ],
    "doc": "Event emitted when a :class:`~flet.canvas.Canvas` reports a new rendered size.\n\nThis event is delivered through :attr:`flet.canvas.Canvas.on_resize`\nand carries the latest measured dimensions in logical pixels.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "width",
@@ -4482,6 +4489,7 @@
    ],
    "doc": "Event payload for dismissal confirmation and completion callbacks.\n\nUsed by :attr:`flet.Dismissible.on_confirm_dismiss` and\n:attr:`flet.Dismissible.on_dismiss`.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "direction",
@@ -4500,6 +4508,7 @@
    ],
    "doc": "Event payload emitted while a dismiss gesture is in progress.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "direction",
@@ -4659,6 +4668,7 @@
    ],
    "doc": "Event payload for :attr:`flet.DragTarget.on_will_accept`.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "src_id",
@@ -4692,6 +4702,7 @@
    ],
    "doc": "Event payload for drag move and accepted-drop callbacks.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "src_id",
@@ -4736,6 +4747,7 @@
    ],
    "doc": "Event payload for :attr:`flet.DragTarget.on_leave`.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "src_id",
@@ -4891,6 +4903,7 @@
    ],
    "doc": "One stdout/stderr line from the embedded Pyodide app.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "text",
@@ -4916,6 +4929,7 @@
    ],
    "doc": "The embedded app asked its window to do something.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "action",
@@ -6025,6 +6039,7 @@
    "bases": [],
    "doc": "Effective transform currently applied to an :class:`InteractiveViewer`.\n\n``scale`` is Flutter's ``Matrix4.getMaxScaleOnAxis()`` after min/max scale\nand boundary clamping. ``1.0`` is the identity transform of the laid-out\ncontent, not a ratio against the content's original pixel size.\n\n``matrix`` is the 16 column-major entries of that matrix, in the same\norder as Flutter's ``Matrix4.storage``. The translation component is also\navailable as :attr:`translation_x`, :attr:`translation_y` and\n:attr:`translation_z` (storage indexes 12, 13 and 14).\n\nThis does not by itself give a physical length. That also depends on the\nlaid-out size of the content and on a separate mapping from that content\nto the real world. If either changes, the same transform describes a\ndifferent physical size.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "scale",
@@ -6313,6 +6328,7 @@
    ],
    "doc": "Event triggered when a key is pressed down.\n\nTypically used to detect the initial press of a key before it is released\nor repeated.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "key",
@@ -6331,6 +6347,7 @@
    ],
    "doc": "Event triggered when a key is released.\n\nUseful for tracking when a key is no longer being pressed after\na key down or repeat event.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "key",
@@ -6349,6 +6366,7 @@
    ],
    "doc": "Event triggered when a key is held down and repeating.\n\nThis event fires continuously while the key remains pressed,\ndepending on the system's key repeat rate.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "key",
@@ -9207,6 +9225,7 @@
    "bases": [],
    "doc": "A range of text that represents a selection.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "base_offset",
@@ -9302,6 +9321,7 @@
    ],
    "doc": "An event emitted when the text selection changes.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "selected_text",
@@ -9970,6 +9990,7 @@
    ],
    "doc": "Payload for :attr:`flet.Window.on_event` callbacks.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "type",
@@ -13550,6 +13571,7 @@
    ],
    "doc": "A base class for dialog controls.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "open",
@@ -13636,6 +13658,7 @@
    ],
    "doc": "Payload for tap press/release events.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "kind",
@@ -13674,6 +13697,7 @@
    ],
    "doc": "Payload for pointer movement during a tap gesture sequence.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "kind",
@@ -13721,6 +13745,7 @@
    ],
    "doc": "Result payload for multi-touch tap detection.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "correct_touches",
@@ -13741,6 +13766,7 @@
    ],
    "doc": "Initial long-press candidate event.\n\nFired when a pointer goes down and may become a long press, before the\ngesture is accepted.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "kind",
@@ -13779,6 +13805,7 @@
    ],
    "doc": "Start payload for an accepted long-press gesture.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "local_position",
@@ -13808,6 +13835,7 @@
    ],
    "doc": "Move update payload after long-press recognition.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "local_position",
@@ -13855,6 +13883,7 @@
    ],
    "doc": "End payload for a completed long-press gesture.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "local_position",
@@ -13893,6 +13922,7 @@
    ],
    "doc": "Initial contact payload for drag-capable gestures.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "local_position",
@@ -13922,6 +13952,7 @@
    ],
    "doc": "Start payload for recognized drag gestures.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "kind",
@@ -13969,6 +14000,7 @@
    ],
    "doc": "Incremental payload for drag progress updates.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "local_position",
@@ -14034,6 +14066,7 @@
    ],
    "doc": "Completion payload for drag gestures.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "local_position",
@@ -14081,6 +14114,7 @@
    ],
    "doc": "Payload for pressure-based gesture callbacks.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "local_position",
@@ -14119,6 +14153,7 @@
    ],
    "doc": "Start payload for scale/transform interaction sequences.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "local_focal_point",
@@ -14166,6 +14201,7 @@
    ],
    "doc": "End payload for scale/transform interaction sequences.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "pointer_count",
@@ -14195,6 +14231,7 @@
    ],
    "doc": "Continuous payload for scale, pan, and rotation updates.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "local_focal_point",
@@ -14287,6 +14324,7 @@
    ],
    "doc": "Effective transform of an ``InteractiveViewer`` after a change.\n\n``scale`` is the clamped scale (``1.0`` is identity). ``matrix`` is the\ncolumn-major 4x4 matrix. This is not the relative scale from a gesture.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "scale",
@@ -14343,6 +14381,7 @@
    ],
    "doc": "Low-level pointer payload with detailed device metrics.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "kind",
@@ -14525,6 +14564,7 @@
    ],
    "doc": "The pointer issued a scroll event.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "local_position",
@@ -14900,6 +14940,7 @@
    ],
    "doc": "Event fired when a control's rendered size changes after layout.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "width",
@@ -15563,6 +15604,7 @@
    ],
    "doc": "Event representing the selection of a suggestion in the AutoComplete control.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "index",
@@ -17002,6 +17044,7 @@
    ],
    "doc": "Event fired when a :class:`~flet.ContextMenu` is dismissed.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "global_position",
@@ -17058,6 +17101,7 @@
    ],
    "doc": "Event fired when a :class:`~flet.ContextMenu` item is selected.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "item_id",
@@ -17199,6 +17243,7 @@
    ],
    "doc": "Event emitted when a :class:`~flet.DataColumn` requests sorting.\n\nThis event is delivered to :attr:`flet.DataColumn.on_sort` when the user triggers\nsorting from a column header. Use :attr:`column_index` and\n:attr:`ascending` to update table state (for example, `sort_column_index` and\n`sort_ascending` on :class:`~flet.DataTable`).",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "column_index",
@@ -17631,6 +17676,7 @@
    ],
    "doc": "Event fired when the :class:`~flet.DatePicker` entry mode is changed.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "entry_mode",
@@ -18689,6 +18735,7 @@
    ],
    "doc": "Payload for :attr:`flet.ExpansionPanelList.on_change` event.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "index",
@@ -22009,6 +22056,7 @@
    ],
    "doc": "Payload for :class:`~flet.ReorderableListView` events related to item\nreordering.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "new_index",
@@ -23441,6 +23489,7 @@
    ],
    "doc": "Represents a hover-state change for a tab in a :class:`~flet.TabBar`.\n\nThis event is emitted by :attr:`flet.TabBar.on_hover` when a pointer\nenters or exits a tab item. When moving directly from one tab to another, the\nhandler is typically called twice: first with :attr:`hovering` set to `False`\nfor the previous tab, then with :attr:`hovering` set to `True` for the next tab.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "hovering",
@@ -23928,6 +23977,7 @@
    "bases": [],
    "doc": "A file pasted into a :class:`~flet.TextField`.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "name",
@@ -23960,6 +24010,7 @@
    ],
    "doc": "Event emitted when files are pasted into a :class:`~flet.TextField`.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "files",
@@ -24659,6 +24710,7 @@
    ],
    "doc": "Represents the event triggered when the entry mode of a :class:`~flet.TimePicker`     changes.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "entry_mode",
@@ -25278,6 +25330,7 @@
    ],
    "doc": "Event payload for :attr:`flet.Page.on_route_change`.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "route",
@@ -25296,6 +25349,7 @@
    ],
    "doc": "Event payload for platform brightness changes.\n\nDelivered to\n:attr:`flet.Page.on_platform_brightness_change`.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "brightness",
@@ -25314,6 +25368,7 @@
    ],
    "doc": "Event payload describing a change in the host platform's locale preferences.\n\nSee also:\n- :attr:`flet.Page.on_locale_change`: event called when locale preferences/settings\n    of the host platform have changed.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "locales",
@@ -25332,6 +25387,7 @@
    ],
    "doc": "Event payload for view-pop navigation actions.\n\nDelivered to :attr:`flet.Page.on_view_pop` when the top view\nis being popped by system or app-bar back behavior.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "route",
@@ -25357,6 +25413,7 @@
    ],
    "doc": "Event payload delivered when :meth:`~flet.Page.pop_views_until` completes     navigation.\n\nCarries the result value back to the destination view.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "route",
@@ -25389,6 +25446,7 @@
    ],
    "doc": "Event payload for keyboard key-down notifications.\n\nDelivered to :attr:`flet.Page.on_keyboard_event`.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "key",
@@ -25435,6 +25493,7 @@
    ],
    "doc": "Event payload for OAuth login completion.\n\nEmitted to :attr:`flet.Page.on_login` for both successful and\nfailed authorization attempts.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "error",
@@ -25458,6 +25517,7 @@
    "bases": [],
    "doc": "Result envelope for a control invoke-method response.\n\nStores the correlation identifier and either a serialized result payload or\nan error string.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "method_id",
@@ -25490,6 +25550,7 @@
    ],
    "doc": "Event payload for app lifecycle transitions.\n\nDelivered to\n:attr:`flet.Page.on_app_lifecycle_state_change`.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "state",
@@ -25508,6 +25569,7 @@
    ],
    "doc": "Event payload emitted when a new multi-view is created.\n\nDelivered to :attr:`flet.Page.on_multi_view_add`.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "view_id",
@@ -25533,6 +25595,7 @@
    ],
    "doc": "Event payload emitted when a multi-view is removed.\n\nDelivered to :attr:`flet.Page.on_multi_view_remove`.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "view_id",
@@ -26246,6 +26309,7 @@
    "bases": [],
    "doc": "Configures the scrollbar that scrollable controls render for their content.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "thumb_visibility",
@@ -26299,6 +26363,7 @@
    ],
    "doc": "Payload for :attr:`flet.ScrollableControl.on_scroll` handlers.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "event_type",
@@ -26463,6 +26528,7 @@
    ],
    "doc": "Discrete reading from an accelerometer. Accelerometers measure the velocity of the     device. Note that these readings include the effects of gravity.\nPut simply, you can use accelerometer readings to tell if the device\nis moving in a particular direction.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "x",
@@ -26549,6 +26615,7 @@
    ],
    "doc": "A sensor sample from a barometer.\n\nBarometers measure the atmospheric pressure surrounding the sensor,\nreturning values in hectopascals `hPa`.\n\nConsider that these samples may be affected by altitude and weather conditions,\nand can be used to predict short-term weather changes or determine altitude.\n\nNote that water-resistant phones or similar sealed devices may experience\npressure fluctuations as the device is held or used, due to changes\nin pressure caused by handling the device.\n\nAn altimeter is an example of a general utility for barometer data.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "pressure",
@@ -26657,6 +26724,7 @@
    ],
    "doc": "Event fired when battery state changes.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "state",
@@ -26857,6 +26925,7 @@
    ],
    "doc": "Copies text to the clipboard when the control is activated.\n\nEquivalent to :meth:`flet.Clipboard.set`, but performed by the client inside\nthe user's gesture, which is the only time Safari permits a page to write to\nthe clipboard.\n\nExample:\n    ```python\n    ft.Button(\"Copy token\", action=ft.CopyToClipboard(token))\n    ```",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "data",
@@ -26921,6 +26990,7 @@
    ],
    "doc": "Event fired when connectivity changes.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "connectivity",
@@ -27010,6 +27080,7 @@
    "bases": [],
    "doc": "Upload descriptor for one file selected by :class:`~flet.FilePicker`.\n\nInstances are passed to :meth:`flet.FilePicker.upload`.\nDuring upload, Flet resolves the selected file by :attr:`id` first and,\nwhen `id` is absent or not found, falls back to :attr:`name`.\n\nAt least one of :attr:`id` or :attr:`name` should be provided.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "upload_url",
@@ -27047,6 +27118,7 @@
    "bases": [],
    "doc": "Metadata for a file selected via\n:meth:`flet.FilePicker.pick_files`.\n\nReturned by :meth:`flet.FilePicker.pick_files` and\nused as input context for :class:`~flet.FilePickerUploadFile`\nwhen uploading selected files.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "id",
@@ -27093,6 +27165,7 @@
    ],
    "doc": "Event emitted when files are selected through a\n:class:`~flet.PickFiles` action.\n\nNot emitted by :meth:`flet.FilePicker.pick_files`, which returns the\nselected files directly.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "files",
@@ -27111,6 +27184,7 @@
    ],
    "doc": "Event emitted when a file is uploaded via     :meth:`flet.FilePicker.upload` method.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "file_name",
@@ -27324,6 +27398,7 @@
    ],
    "doc": "Opens a file picker dialog when the control is activated.\n\nEquivalent to :meth:`flet.FilePicker.pick_files`, but performed by the\nclient inside the user's gesture, which is the only time a browser opens a\nfile picker. This is what makes file picking work in a web app on iOS.\n\nUnlike `pick_files()`, the selection is not returned to the caller - it\narrives at :attr:`flet.FilePicker.on_result`. The files stay associated with\n`file_picker`, so they can be passed straight to\n:meth:`flet.FilePicker.upload`.\n\nExample:\n    ```python\n    picker = ft.FilePicker(on_result=handle_result)\n    page.services.append(picker)\n\n    ft.Button(\"Upload\", action=ft.PickFiles(picker, allow_multiple=True))\n    ```",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "file_picker",
@@ -27398,6 +27473,7 @@
    ],
    "doc": "Discrete reading from a gyroscope.\n\nGyroscope sample containing device rotation rate (`rad/s`) around each\naxis plus the microsecond timestamp.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "x",
@@ -27547,6 +27623,7 @@
    ],
    "doc": "A sensor sample from a magnetometer.\n\nMagnetometers measure the ambient magnetic field surrounding the sensor,\nreturning values in microteslas `μT` for each three-dimensional axis.\n\nConsider that these samples may bear effects of Earth's magnetic field\nas well as local factors such as the metal of the device itself\nor nearby magnets, though most devices compensate for these factors.\n\nA compass is an example of a general utility for magnetometer data.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "x",
@@ -27633,6 +27710,7 @@
    ],
    "doc": "Event fired when screen brightness changes.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "brightness",
@@ -27835,6 +27913,7 @@
    "bases": [],
    "doc": "Accessibility features that may be enabled by the platform.\n\nNote:\n    It is not possible to enable these settings from Flet, instead they are\n    used by the platform to indicate that additional accessibility features are\n    enabled.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "accessible_navigation",
@@ -27974,6 +28053,7 @@
    ],
    "doc": "Generic sensor error event. `message` contains the platform error text.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "message",
@@ -27992,6 +28072,7 @@
    ],
    "doc": "Base class for user services.\n\nBy default, construction registers the service with the current page after\n`init()` returns, whether or not the override calls `super().init()`. Set client\nproperties and event handlers in `init()` so they are included in registration\nand available when the Dart service initializes. Without a current page context,\nthe service is constructed but not registered.\n\nNote:\n    Inside `init()`, the service isn't attached to the page yet: `self.page`\n    and `self.update()` raise. Use `ft.context.page` to access the current page.\n\nDeclared fields participate in serialization unless excluded with\n`metadata={\"skip\": True}`; a leading underscore does not exclude a field.\nKeep Python-only state, such as clients or handles, in excluded fields or\nattributes assigned in `init()` without declaring them as fields.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": []
   },
   {
@@ -28184,6 +28265,7 @@
    "bases": [],
    "doc": "Result returned from the native share sheet.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "status",
@@ -28207,6 +28289,7 @@
    "bases": [],
    "doc": "Represents a file to share, either from disk or in-memory bytes.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "path",
@@ -28392,6 +28475,7 @@
    ],
    "doc": "Opens the platform share sheet with text when the control is activated.\n\nEquivalent to :meth:`flet.Share.share_text`, but performed by the client\ninside the user's gesture, which is the only time a browser permits\n`navigator.share`.\n\nThe share result is not reported back - use\n:meth:`flet.Share.share_text` if you need it, keeping in mind that it does\nnot work on the web on iOS.\n\nExample:\n    ```python\n    ft.Button(\n        \"Share\",\n        action=ft.ShareText(\"Check out Flet\", subject=\"Flet\"),\n    )\n    ```",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "text",
@@ -28706,6 +28790,7 @@
    "bases": [],
    "doc": "Configuration options for in-app web views.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "enable_javascript",
@@ -28737,6 +28822,7 @@
    "bases": [],
    "doc": "Configuration options for in-app browser views.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "show_title",
@@ -28913,6 +28999,7 @@
    ],
    "doc": "Opens a URL when the control is activated.\n\nEquivalent to :meth:`flet.UrlLauncher.launch_url`, but performed by the\nclient inside the user's gesture, so that opening a new tab is not blocked as\nan unsolicited popup.\n\nExample:\n    ```python\n    ft.Button(\n        \"Open flet.dev\",\n        action=ft.OpenUrl(\"https://flet.dev\", target=ft.UrlTarget.BLANK),\n    )\n    ```",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "url",
@@ -28938,6 +29025,7 @@
    ],
    "doc": "Like :class:`~flet.AccelerometerReadingEvent`, this is a discrete reading from an     accelerometer and measures the velocity of the device. However, unlike     :class:`~flet.AccelerometerReadingEvent`, this event does not include the effects     of     gravity.",
    "kind": "value",
+   "plain_dataclass": true,
    "fields": [
     {
      "name": "x",

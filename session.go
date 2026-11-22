@@ -36,6 +36,8 @@ type server struct {
 	debug bool
 	// timeout is how long a disconnected session is kept (0 = forever).
 	timeout time.Duration
+	// uploads receives files from FilePicker.Upload (web only, optional).
+	uploads *uploads
 
 	mu    sync.Mutex
 	pages map[string]*sessionState
@@ -175,6 +177,7 @@ func (s *session) register(body map[string]any) {
 		sid = randomID()
 		st = &sessionState{page: newPage(s.send)}
 		st.page.ClientIP, st.page.ClientUserAgent = s.info.ip, s.info.userAgent
+		st.page.uploads = s.srv.uploads
 		s.srv.pages[sid] = st
 	}
 	st.connected = true

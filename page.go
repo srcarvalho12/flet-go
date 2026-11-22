@@ -54,8 +54,9 @@ type Page struct {
 	// pruneNeeded is set when controls were removed during an update.
 	pruneNeeded bool
 
-	calls calls
-	queue queue
+	calls   calls
+	queue   queue
+	uploads *uploads
 }
 
 type snapshot struct {

@@ -114,7 +114,7 @@ func emitEncode(w *writer, r string, f *field, key string) {
 			w.p("if %s != nil { m[%s] = *%s } else { m[%s] = %s }", v, k, v, k, f.override)
 		case f.pointer:
 			w.p("if %s != nil { m[%s] = *%s }", v, k, v)
-		case f.required:
+		case f.required || !f.pointer && f.override != "" && f.override == zeroOf(f.typ):
 			w.p("m[%s] = %s", k, v)
 		case f.override != "":
 			w.p("if %s != %s { m[%s] = %s } else { m[%s] = %s }", v, zeroOf(f.typ), k, v, k, f.override)

@@ -2,6 +2,7 @@ package flet
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -17,16 +18,18 @@ import (
 	"github.com/srcarvalho12/flet-go/internal/protocol"
 )
 
+const testIndex = `<html><head><base href="/"><!-- fletAppConfig --></head>index</html>`
+
 // newWebServer serves main with a fake web client folder.
-func newWebServer(t *testing.T, main func(*Page)) (*httptest.Server, *webHandler) {
+func newWebServer(t *testing.T, main func(*Page), opts ...WebOptions) (*httptest.Server, *webHandler) {
 	t.Helper()
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "assets"), 0o755)
-	os.WriteFile(filepath.Join(dir, "index.html"), []byte("<html>index</html>"), 0o644)
+	os.WriteFile(filepath.Join(dir, "index.html"), []byte(testIndex), 0o644)
 	os.WriteFile(filepath.Join(dir, "assets", "app.js"), []byte("js"), 0o644)
 	t.Setenv(client.EnvWebPath, dir)
 
-	h, err := Handler(main)
+	h, err := Handler(main, opts...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,12 +44,13 @@ func TestWebStaticFiles(t *testing.T) {
 		path, body string
 		status     int
 	}{
-		{"/", "<html>index</html>", 200},
-		{"/index.html", "<html>index</html>", 200},
+		{"/", testIndex, 200},
+		{"/index.html", testIndex, 200},
 		{"/assets/app.js", "js", 200},
-		{"/some/route", "<html>index</html>", 200}, // app route
+		{"/some/route", testIndex, 200}, // app route
 		{"/missing.js", "", 404},
-		{"/assets", "<html>index</html>", 200}, // folders are not listed
+		{"/assets", testIndex, 200}, // folders are not listed
+		{"/upload", testIndex, 200}, // no upload endpoint unless enabled
 	}
 	for _, c := range cases {
 		resp, err := http.Get(ts.URL + c.path)
@@ -67,6 +71,10 @@ type wsClient struct {
 }
 
 func dialWeb(t *testing.T, ts *httptest.Server, userAgent ...string) *wsClient {
+	return dialWebPath(t, ts, "/ws", userAgent...)
+}
+
+func dialWebPath(t *testing.T, ts *httptest.Server, wsPath string, userAgent ...string) *wsClient {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -74,7 +82,7 @@ func dialWeb(t *testing.T, ts *httptest.Server, userAgent ...string) *wsClient {
 	if len(userAgent) > 0 {
 		opts.HTTPHeader.Set("User-Agent", userAgent[0])
 	}
-	c, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(ts.URL, "http")+"/ws", opts)
+	c, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(ts.URL, "http")+wsPath, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,3 +210,111 @@ func TestWebSessionExpiry(t *testing.T) {
 		t.Fatal("expired session was reused")
 	}
 }
+
+func get(t *testing.T, url string) (int, string) {
+	t.Helper()
+	c := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	resp, err := c.Get(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(resp.Body)
+	return resp.StatusCode, string(b)
+}
+
+func TestWebBasePath(t *testing.T) {
+	ts, _ := newWebServer(t, func(p *Page) { p.Add(&Text{Value: "hi"}) }, WebOptions{BasePath: "app"})
+
+	code, body := get(t, ts.URL+"/app/")
+	if code != 200 || !strings.Contains(body, `<base href="/app/">`) ||
+		!strings.Contains(body, `flet.webSocketEndpoint="/app/ws"`) ||
+		!strings.Contains(body, `flet.assetBase="/app/"`) {
+		t.Fatalf("index not patched: %d %s", code, body)
+	}
+	if code, body := get(t, ts.URL+"/app/assets/app.js"); code != 200 || body != "js" {
+		t.Errorf("asset: %d %q", code, body)
+	}
+	if code, _ := get(t, ts.URL+"/app"); code != http.StatusMovedPermanently {
+		t.Errorf("/app: %d, want redirect", code)
+	}
+	for _, p := range []string{"/", "/assets/app.js", "/application", "/ws"} {
+		if code, _ := get(t, ts.URL+p); code != 404 {
+			t.Errorf("%s outside the base path: %d, want 404", p, code)
+		}
+	}
+
+	c := dialWebPath(t, ts, "/app/ws")
+	if c.register("") == "" {
+		t.Fatal("no session over the base path WebSocket")
+	}
+}
+
+func TestUploads(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv(EnvSecretKey, "")
+	t.Setenv(EnvMaxUploadSize, "")
+	urls := make(chan *Page, 1)
+	ts, h := newWebServer(t, func(p *Page) { urls <- p }, WebOptions{
+		BasePath: "/app/", UploadDir: dir, MaxUploadSize: 10,
+	})
+	dialWebPath(t, ts, "/app/ws").register("")
+	page := <-urls
+
+	put := func(u, body string) int {
+		t.Helper()
+		req, _ := http.NewRequest(http.MethodPut, ts.URL+u, strings.NewReader(body))
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		return resp.StatusCode
+	}
+
+	u, err := page.GetUploadURL("docs/a.txt", time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(u, "/app/upload?") {
+		t.Fatalf("upload URL %q is not under the base path", u)
+	}
+	if code := put(u, "hello"); code != 200 {
+		t.Fatalf("upload: %d", code)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "docs", "a.txt")); string(b) != "hello" {
+		t.Fatalf("saved %q", b)
+	}
+
+	if code := put(strings.Replace(u, "a.txt", "b.txt", 1), "x"); code != http.StatusForbidden {
+		t.Errorf("URL for another file: %d, want 403", code)
+	}
+	if code := put(u, "more than ten bytes"); code != http.StatusRequestEntityTooLarge {
+		t.Errorf("too large: %d, want 413", code)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "docs", "a.txt")); err != nil {
+		t.Errorf("a rejected upload removed the earlier file: %v", err)
+	}
+
+	expired, _ := h.srv.uploads.url("old.txt", -time.Second)
+	if code := put(expired, "x"); code != http.StatusGone {
+		t.Errorf("expired: %d, want 410", code)
+	}
+	for _, name := range []string{"../escape.txt", "/etc/x", "", "a/../../b"} {
+		if _, err := page.GetUploadURL(name, time.Minute); err == nil {
+			t.Errorf("GetUploadURL(%q) should fail", name)
+		}
+	}
+
+	// Leftover temporary files would mean a failed upload was not cleaned up.
+	entries, _ := os.ReadDir(filepath.Join(dir, "docs"))
+	if len(entries) != 1 {
+		t.Errorf("upload folder has %d entries, want 1", len(entries))
+	}
+
+	if _, err := newTestPageNoT().GetUploadURL("a", time.Minute); !errors.Is(err, ErrUploadsDisabled) {
+		t.Errorf("err = %v, want ErrUploadsDisabled", err)
+	}
+}
+
+func newTestPageNoT() *Page { return newPage(func(protocol.Message) {}) }

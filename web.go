@@ -10,7 +10,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/coder/websocket"
@@ -28,11 +30,27 @@ const defaultSessionTimeout = time.Hour
 // read with their data).
 const maxMessageSize = 64 << 20
 
+// WebOptions configures a web app. All fields are optional.
+type WebOptions struct {
+	// BasePath is the URL path the app is served under, e.g. "/app/".
+	// Default "/".
+	BasePath string
+	// UploadDir enables uploads from FilePicker.Upload: files sent to the
+	// URLs made by Page.GetUploadURL are saved under this folder.
+	UploadDir string
+	// MaxUploadSize limits each uploaded file, in bytes (0 = no limit).
+	// Also set by FLET_MAX_UPLOAD_SIZE.
+	MaxUploadSize int64
+	// SecretKey signs upload URLs. Also set by FLET_SECRET_KEY. When empty,
+	// a random key is used, so upload URLs stop working after a restart.
+	SecretKey string
+}
+
 // Serve runs the app as a web server at addr (e.g. ":8550").
 // Each browser tab gets its own page. The web client is downloaded on the
 // first run and served from the same address.
-func Serve(addr string, main func(page *Page)) error {
-	h, err := Handler(main)
+func Serve(addr string, main func(page *Page), opts ...WebOptions) error {
+	h, err := Handler(main, opts...)
 	if err != nil {
 		return err
 	}
@@ -40,13 +58,20 @@ func Serve(addr string, main func(page *Page)) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "Serving on http://%s\n", displayAddr(ln.Addr()))
+	fmt.Fprintf(os.Stderr, "Serving on http://%s%s\n", displayAddr(ln.Addr()), h.(*webHandler).base)
 	return http.Serve(ln, h)
 }
 
 // Handler returns an http.Handler that serves the web client and runs main
-// for each browser tab. It must be mounted at the root path ("/").
-func Handler(main func(page *Page)) (http.Handler, error) {
+// for each browser tab. Mount it at WebOptions.BasePath (default "/"), e.g.
+// mux.Handle("/app/", h) with BasePath "/app/".
+func Handler(main func(page *Page), opts ...WebOptions) (http.Handler, error) {
+	var o WebOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	base := normalizeBase(o.BasePath)
+
 	dir, err := client.ResolveWeb()
 	if err != nil {
 		return nil, err
@@ -65,20 +90,66 @@ func Handler(main func(page *Page)) (http.Handler, error) {
 		}
 		srv.timeout = time.Duration(secs) * time.Second
 	}
-	return &webHandler{srv: srv, dir: dir, index: index}, nil
+	if o.UploadDir != "" {
+		srv.uploads, err = newUploads(o, base+"upload")
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &webHandler{srv: srv, dir: dir, base: base, index: patchIndex(index, base)}, nil
 }
+
+// normalizeBase turns "app", "/app" or "/app/" into "/app/".
+func normalizeBase(p string) string {
+	p = strings.Trim(path.Clean("/"+p), "/")
+	if p == "" {
+		return "/"
+	}
+	return "/" + p + "/"
+}
+
+// patchIndex points the web client to the base path: the <base> tag, where
+// assets load from and where the WebSocket is.
+func patchIndex(index []byte, base string) []byte {
+	if base == "/" {
+		return index
+	}
+	s := baseTag.ReplaceAllLiteralString(string(index), `<base href="`+base+`">`)
+	config := fmt.Sprintf("<script>\nflet.entrypointBaseUrl=%q;\nflet.assetBase=%q;\nflet.webSocketEndpoint=%q;\n</script>",
+		base, base, base+"ws")
+	s = strings.Replace(s, "<!-- fletAppConfig -->", config, 1)
+	return []byte(s)
+}
+
+var baseTag = regexp.MustCompile(`(?i)<base\b[^>]*>`)
 
 type webHandler struct {
 	srv   *server
 	dir   string
+	base  string
 	index []byte
 }
 
 func (h *webHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p := path.Clean("/" + r.URL.Path)
+	if h.base != "/" {
+		if r.URL.Path+"/" == h.base {
+			http.Redirect(w, r, h.base, http.StatusMovedPermanently)
+			return
+		}
+		rest, ok := strings.CutPrefix(p, strings.TrimSuffix(h.base, "/"))
+		if !ok || rest != "" && rest[0] != '/' {
+			http.NotFound(w, r)
+			return
+		}
+		p = path.Clean("/" + rest)
+	}
 	switch {
 	case p == "/ws":
 		h.serveWebSocket(w, r)
+		return
+	case p == "/upload" && h.srv.uploads != nil:
+		h.srv.uploads.ServeHTTP(w, r)
 		return
 	case p == "/" || p == "/index.html":
 		h.serveIndex(w)
