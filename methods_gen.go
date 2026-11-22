@@ -15,9 +15,9 @@ var _ time.Duration
 // ScrollToOptions are the optional arguments of ScrollableControl.ScrollTo.
 type ScrollToOptions struct {
 	// Offset:
-	Offset float64
+	Offset *float64
 	// Delta:
-	Delta float64
+	Delta *float64
 	// ScrollKey:
 	ScrollKey any
 	// Duration:
@@ -37,19 +37,19 @@ type OpenOptions struct {
 // GetDirectoryPathOptions are the optional arguments of FilePicker.GetDirectoryPath.
 type GetDirectoryPathOptions struct {
 	// DialogTitle:
-	DialogTitle string
+	DialogTitle *string
 	// InitialDirectory:
-	InitialDirectory string
+	InitialDirectory *string
 }
 
 // SaveFileOptions are the optional arguments of FilePicker.SaveFile.
 type SaveFileOptions struct {
 	// DialogTitle:
-	DialogTitle string
+	DialogTitle *string
 	// FileName:
-	FileName string
+	FileName *string
 	// InitialDirectory:
-	InitialDirectory string
+	InitialDirectory *string
 	// FileType:
 	FileType FilePickerFileType
 	// AllowedExtensions:
@@ -61,9 +61,9 @@ type SaveFileOptions struct {
 // PickFilesOptions are the optional arguments of FilePicker.PickFiles.
 type PickFilesOptions struct {
 	// DialogTitle:
-	DialogTitle string
+	DialogTitle *string
 	// InitialDirectory:
-	InitialDirectory string
+	InitialDirectory *string
 	// FileType:
 	FileType FilePickerFileType
 	// AllowedExtensions:
@@ -133,7 +133,7 @@ type ShowOptions struct {
 // CaptureOptions are the optional arguments of Screenshot.Capture.
 type CaptureOptions struct {
 	// PixelRatio:
-	PixelRatio float64
+	PixelRatio *float64
 	// Delay:
 	Delay time.Duration
 }
@@ -155,17 +155,17 @@ type LaunchURLOptions struct {
 	// BrowserConfiguration:
 	BrowserConfiguration *BrowserConfiguration
 	// WebOnlyWindowName:
-	WebOnlyWindowName string
+	WebOnlyWindowName *string
 }
 
 // OpenWindowOptions are the optional arguments of UrlLauncher.OpenWindow.
 type OpenWindowOptions struct {
 	// Title:
-	Title string
+	Title *string
 	// Width:
-	Width float64
+	Width *float64
 	// Height:
-	Height float64
+	Height *float64
 }
 
 // GetBatteryLevel gets the current battery level as a percentage, in the range `0` to
@@ -233,8 +233,12 @@ func (c *Column) ScrollTo(opts ...ScrollToOptions) error {
 	m := map[string]any{}
 	if len(opts) > 0 {
 		o := opts[0]
-		setIf(m, "offset", o.Offset)
-		setIf(m, "delta", o.Delta)
+		if o.Offset != nil {
+			m["offset"] = *o.Offset
+		}
+		if o.Delta != nil {
+			m["delta"] = *o.Delta
+		}
 		if o.ScrollKey != nil {
 			m["scroll_key"] = encodeAny(o.ScrollKey)
 		}
@@ -317,8 +321,12 @@ func (c *ExpansionPanelList) ScrollTo(opts ...ScrollToOptions) error {
 	m := map[string]any{}
 	if len(opts) > 0 {
 		o := opts[0]
-		setIf(m, "offset", o.Offset)
-		setIf(m, "delta", o.Delta)
+		if o.Offset != nil {
+			m["offset"] = *o.Offset
+		}
+		if o.Delta != nil {
+			m["delta"] = *o.Delta
+		}
 		if o.ScrollKey != nil {
 			m["scroll_key"] = encodeAny(o.ScrollKey)
 		}
@@ -344,8 +352,12 @@ func (c *FilePicker) GetDirectoryPath(opts ...GetDirectoryPathOptions) (string, 
 	m := map[string]any{}
 	if len(opts) > 0 {
 		o := opts[0]
-		setIf(m, "dialog_title", o.DialogTitle)
-		setIf(m, "initial_directory", o.InitialDirectory)
+		if o.DialogTitle != nil {
+			m["dialog_title"] = *o.DialogTitle
+		}
+		if o.InitialDirectory != nil {
+			m["initial_directory"] = *o.InitialDirectory
+		}
 	}
 	return invokeResult[string](&c.controlBase, "get_directory_path", m)
 }
@@ -356,9 +368,15 @@ func (c *FilePicker) SaveFile(opts ...SaveFileOptions) (string, error) {
 	m := map[string]any{}
 	if len(opts) > 0 {
 		o := opts[0]
-		setIf(m, "dialog_title", o.DialogTitle)
-		setIf(m, "file_name", o.FileName)
-		setIf(m, "initial_directory", o.InitialDirectory)
+		if o.DialogTitle != nil {
+			m["dialog_title"] = *o.DialogTitle
+		}
+		if o.FileName != nil {
+			m["file_name"] = *o.FileName
+		}
+		if o.InitialDirectory != nil {
+			m["initial_directory"] = *o.InitialDirectory
+		}
 		setIf(m, "file_type", o.FileType)
 		if len(o.AllowedExtensions) > 0 {
 			m["allowed_extensions"] = slices.Clone(o.AllowedExtensions)
@@ -375,8 +393,12 @@ func (c *FilePicker) PickFiles(opts ...PickFilesOptions) ([]*FilePickerFile, err
 	m := map[string]any{}
 	if len(opts) > 0 {
 		o := opts[0]
-		setIf(m, "dialog_title", o.DialogTitle)
-		setIf(m, "initial_directory", o.InitialDirectory)
+		if o.DialogTitle != nil {
+			m["dialog_title"] = *o.DialogTitle
+		}
+		if o.InitialDirectory != nil {
+			m["initial_directory"] = *o.InitialDirectory
+		}
 		setIf(m, "file_type", o.FileType)
 		if len(o.AllowedExtensions) > 0 {
 			m["allowed_extensions"] = slices.Clone(o.AllowedExtensions)
@@ -435,8 +457,12 @@ func (c *GridView) ScrollTo(opts ...ScrollToOptions) error {
 	m := map[string]any{}
 	if len(opts) > 0 {
 		o := opts[0]
-		setIf(m, "offset", o.Offset)
-		setIf(m, "delta", o.Delta)
+		if o.Offset != nil {
+			m["offset"] = *o.Offset
+		}
+		if o.Delta != nil {
+			m["delta"] = *o.Delta
+		}
 		if o.ScrollKey != nil {
 			m["scroll_key"] = encodeAny(o.ScrollKey)
 		}
@@ -556,8 +582,12 @@ func (c *ListView) ScrollTo(opts ...ScrollToOptions) error {
 	m := map[string]any{}
 	if len(opts) > 0 {
 		o := opts[0]
-		setIf(m, "offset", o.Offset)
-		setIf(m, "delta", o.Delta)
+		if o.Offset != nil {
+			m["offset"] = *o.Offset
+		}
+		if o.Delta != nil {
+			m["delta"] = *o.Delta
+		}
 		if o.ScrollKey != nil {
 			m["scroll_key"] = encodeAny(o.ScrollKey)
 		}
@@ -688,8 +718,12 @@ func (c *ReorderableListView) ScrollTo(opts ...ScrollToOptions) error {
 	m := map[string]any{}
 	if len(opts) > 0 {
 		o := opts[0]
-		setIf(m, "offset", o.Offset)
-		setIf(m, "delta", o.Delta)
+		if o.Offset != nil {
+			m["offset"] = *o.Offset
+		}
+		if o.Delta != nil {
+			m["delta"] = *o.Delta
+		}
 		if o.ScrollKey != nil {
 			m["scroll_key"] = encodeAny(o.ScrollKey)
 		}
@@ -707,8 +741,12 @@ func (c *ResponsiveRow) ScrollTo(opts ...ScrollToOptions) error {
 	m := map[string]any{}
 	if len(opts) > 0 {
 		o := opts[0]
-		setIf(m, "offset", o.Offset)
-		setIf(m, "delta", o.Delta)
+		if o.Offset != nil {
+			m["offset"] = *o.Offset
+		}
+		if o.Delta != nil {
+			m["delta"] = *o.Delta
+		}
 		if o.ScrollKey != nil {
 			m["scroll_key"] = encodeAny(o.ScrollKey)
 		}
@@ -726,8 +764,12 @@ func (c *Row) ScrollTo(opts ...ScrollToOptions) error {
 	m := map[string]any{}
 	if len(opts) > 0 {
 		o := opts[0]
-		setIf(m, "offset", o.Offset)
-		setIf(m, "delta", o.Delta)
+		if o.Offset != nil {
+			m["offset"] = *o.Offset
+		}
+		if o.Delta != nil {
+			m["delta"] = *o.Delta
+		}
 		if o.ScrollKey != nil {
 			m["scroll_key"] = encodeAny(o.ScrollKey)
 		}
@@ -813,7 +855,9 @@ func (c *Screenshot) Capture(opts ...CaptureOptions) ([]byte, error) {
 	m := map[string]any{}
 	if len(opts) > 0 {
 		o := opts[0]
-		setIf(m, "pixel_ratio", o.PixelRatio)
+		if o.PixelRatio != nil {
+			m["pixel_ratio"] = *o.PixelRatio
+		}
 		if o.Delay != 0 {
 			m["delay"] = o.Delay.Milliseconds()
 		}
@@ -979,7 +1023,9 @@ func (c *UrlLauncher) LaunchURL(url any, opts ...LaunchURLOptions) error {
 		if o.BrowserConfiguration != nil {
 			m["browser_configuration"] = o.BrowserConfiguration.toMap()
 		}
-		setIf(m, "web_only_window_name", o.WebOnlyWindowName)
+		if o.WebOnlyWindowName != nil {
+			m["web_only_window_name"] = *o.WebOnlyWindowName
+		}
 	}
 	_, err := c.invoke("launch_url", m)
 	return err
@@ -1005,9 +1051,15 @@ func (c *UrlLauncher) OpenWindow(url any, opts ...OpenWindowOptions) error {
 	m["url"] = encodeArg(url)
 	if len(opts) > 0 {
 		o := opts[0]
-		setIf(m, "title", o.Title)
-		setIf(m, "width", o.Width)
-		setIf(m, "height", o.Height)
+		if o.Title != nil {
+			m["title"] = *o.Title
+		}
+		if o.Width != nil {
+			m["width"] = *o.Width
+		}
+		if o.Height != nil {
+			m["height"] = *o.Height
+		}
 	}
 	_, err := c.invoke("open_window", m)
 	return err
@@ -1065,8 +1117,12 @@ func (c *View) ScrollTo(opts ...ScrollToOptions) error {
 	m := map[string]any{}
 	if len(opts) > 0 {
 		o := opts[0]
-		setIf(m, "offset", o.Offset)
-		setIf(m, "delta", o.Delta)
+		if o.Offset != nil {
+			m["offset"] = *o.Offset
+		}
+		if o.Delta != nil {
+			m["delta"] = *o.Delta
+		}
 		if o.ScrollKey != nil {
 			m["scroll_key"] = encodeAny(o.ScrollKey)
 		}

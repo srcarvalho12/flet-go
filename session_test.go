@@ -272,3 +272,17 @@ func TestReconnectAtAnotherRoute(t *testing.T) {
 		t.Fatalf("reconnected tab shows %q, want other", got)
 	}
 }
+
+// Optional method arguments that default to None can be sent as zero.
+func TestMethodZeroArgument(t *testing.T) {
+	p, fc := newTestPage(t)
+	connect(p, fc)
+	list := &ListView{}
+	p.Add(list)
+	if err := list.ScrollTo(ScrollToOptions{Offset: Float(0)}); err != nil {
+		t.Fatal(err)
+	}
+	if len(fc.calls) != 1 || fc.calls[0] != "scroll_to map[offset:0]" {
+		t.Fatalf("calls = %v", fc.calls)
+	}
+}

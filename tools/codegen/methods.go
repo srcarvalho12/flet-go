@@ -107,7 +107,9 @@ func (m *model) buildMethod(declIn string, pm *Method) (*method, string) {
 			mt.required = append(mt.required, f)
 			continue
 		}
-		f.pointer = f.typ.kind == kScalar && !isZeroDefault(f.defaultValue())
+		// A scalar argument that defaults to None is a pointer: zero (e.g.
+		// scroll offset 0) is a real value, different from "not given".
+		f.pointer = f.typ.kind == kScalar && (!isZeroDefault(f.defaultValue()) || f.defaultValue() == "None")
 		if f.pointer {
 			f.typ.goTyp = "*" + f.typ.goTyp
 		}
