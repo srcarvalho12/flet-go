@@ -254,3 +254,60 @@ func TestRandomListChanges(t *testing.T) {
 		t.Errorf("index has %d entries, want %d", len(p.index), want)
 	}
 }
+
+func TestSlots(t *testing.T) {
+	p, fc := newTestPage(t)
+	clicks := 0
+	inner := &Button{Content: "inner", OnClick: func(*Event) { clicks++ }}
+	box := &Container{Content: inner}
+	btn := &Button{Content: "text"}
+	p.Add(box, btn)
+	connect(p, fc)
+
+	// Events reach a control nested in a single-child slot.
+	p.lookup(inner.ID()).handleEvent(&Event{Name: "click"})
+	if clicks != 1 {
+		t.Fatalf("nested click not delivered")
+	}
+
+	// Change the nested control's props, then swap the child.
+	inner.Content = "changed"
+	p.Update()
+	assertInSync(t, p, fc)
+
+	box.Content = &Text{Value: "new child"}
+	p.Update()
+	assertInSync(t, p, fc)
+	if p.lookup(inner.ID()) != nil {
+		t.Error("replaced child is still in the index")
+	}
+
+	// A string-or-control field switching both ways.
+	btn.Content = &Text{Value: "as control"}
+	p.Update()
+	assertInSync(t, p, fc)
+	btn.Content = "as text again"
+	p.Update()
+	assertInSync(t, p, fc)
+
+	box.Content = nil
+	p.Update()
+	assertInSync(t, p, fc)
+}
+
+func TestClientProps(t *testing.T) {
+	p, fc := newTestPage(t)
+	tf := &TextField{}
+	p.Add(tf)
+	connect(p, fc)
+
+	p.applyClientProps(tf.ID(), map[string]any{"value": "typed"})
+	if tf.Value != "typed" {
+		t.Fatalf("Value = %q, want %q", tf.Value, "typed")
+	}
+	// The client already has the value: nothing is echoed back.
+	p.Update()
+	if fc.msgs != 0 {
+		t.Fatalf("client change was echoed back (%d messages)", fc.msgs)
+	}
+}

@@ -8,12 +8,14 @@ type Control interface {
 	base() *controlBase
 	// kind is the control name in the Dart client (e.g. "Text").
 	kind() string
-	// props are the simple properties (text, number, bool, on_*).
+	// props are the plain properties (text, numbers, styles, on_* flags).
 	props() map[string]any
-	// lists are the properties that hold children (e.g. "controls").
+	// lists are the properties that hold a list of children (e.g. "controls").
 	lists() map[string][]Control
+	// slots are the properties that hold a single child (e.g. "content").
+	slots() map[string]Control
 	// handleEvent dispatches an event coming from the client.
-	handleEvent(e Event)
+	handleEvent(e *Event)
 }
 
 // IDs 1 and 2 are reserved by the client for Page and Window.
@@ -36,7 +38,8 @@ func (b *controlBase) base() *controlBase {
 func (b *controlBase) ID() int64 { return b.base().id }
 
 func (b *controlBase) lists() map[string][]Control { return nil }
-func (b *controlBase) handleEvent(Event)           {}
+func (b *controlBase) slots() map[string]Control   { return nil }
+func (b *controlBase) handleEvent(*Event)          {}
 
 // encode turns the control (and its children) into the map sent to the client.
 func encode(c Control) map[string]any {
@@ -50,6 +53,9 @@ func encode(c Control) map[string]any {
 	for k, children := range c.lists() {
 		m[k] = encodeList(children)
 	}
+	for k, child := range c.slots() {
+		m[k] = encode(child)
+	}
 	return m
 }
 
@@ -59,6 +65,18 @@ func encodeList(cs []Control) []any {
 		out[i] = encode(c)
 	}
 	return out
+}
+
+// children calls fn for every direct child of c.
+func children(c Control, fn func(Control)) {
+	for _, list := range c.lists() {
+		for _, child := range list {
+			fn(child)
+		}
+	}
+	for _, child := range c.slots() {
+		fn(child)
+	}
 }
 
 // setIf adds the property only when it is not the zero value,

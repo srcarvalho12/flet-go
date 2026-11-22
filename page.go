@@ -30,6 +30,7 @@ type Page struct {
 type snapshot struct {
 	props map[string]any
 	lists map[string][]int64
+	slots map[string]int64
 }
 
 func newPage(send func(protocol.Message)) *Page {
@@ -101,15 +102,44 @@ func (p *Page) lookup(id int64) Control {
 	return p.index[id]
 }
 
+// applyClientProps applies properties changed on the client (e.g. text typed
+// into a TextField) and marks them as already sent, so they are not echoed.
+func (p *Page) applyClientProps(id int64, props map[string]any) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	c := p.index[id]
+	ps, ok := c.(propsSetter)
+	if !ok {
+		return
+	}
+	ps.applyProps(props)
+	snap := p.sent[id]
+	if snap == nil {
+		return
+	}
+	cur := c.props()
+	for k := range props {
+		if v, ok := cur[k]; ok {
+			snap.props[k] = v
+		} else {
+			delete(snap.props, k)
+		}
+	}
+}
+
 // record stores the current state of a control and all its children.
 func (p *Page) record(c Control) {
 	b := c.base()
-	snap := &snapshot{props: c.props(), lists: map[string][]int64{}}
+	snap := &snapshot{props: c.props(), lists: map[string][]int64{}, slots: map[string]int64{}}
 	for k, children := range c.lists() {
 		snap.lists[k] = idsOf(children)
 		for _, child := range children {
 			p.record(child)
 		}
+	}
+	for k, child := range c.slots() {
+		snap.slots[k] = child.base().id
+		p.record(child)
 	}
 	p.sent[b.id] = snap
 	p.index[b.id] = c
@@ -122,11 +152,7 @@ func (p *Page) prune() {
 	var walk func(c Control)
 	walk = func(c Control) {
 		alive[c.base().id] = true
-		for _, children := range c.lists() {
-			for _, child := range children {
-				walk(child)
-			}
-		}
+		children(c, walk)
 	}
 	walk(p.root)
 	for id := range p.index {
@@ -201,6 +227,33 @@ func (p *Page) diff(c Control) {
 		existing = append(existing, p.diffList(pt, k, snap.lists[k], children)...)
 		snap.lists[k] = idsOf(children)
 	}
+
+	// Single children: replaced whole when a different control is set.
+	slots := c.slots()
+	for k := range snap.slots {
+		if _, ok := slots[k]; !ok {
+			// A field that now holds a plain value already got its op above.
+			if _, isProp := cur[k]; !isProp {
+				pt.ops = append(pt.ops, []any{protocol.OpReplace, 0, k, nil})
+			}
+			p.pruneNeeded = true
+		}
+	}
+	newSlots := make(map[string]int64, len(slots))
+	for k, child := range slots {
+		cid := child.base().id
+		newSlots[k] = cid
+		if snap.slots[k] == cid {
+			existing = append(existing, child)
+			continue
+		}
+		if snap.slots[k] != 0 {
+			p.pruneNeeded = true
+		}
+		pt.ops = append(pt.ops, []any{protocol.OpReplace, 0, k, encode(child)})
+		p.record(child)
+	}
+	snap.slots = newSlots
 
 	if len(pt.ops) > 0 {
 		p.send(protocol.Message{

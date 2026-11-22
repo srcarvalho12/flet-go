@@ -17,18 +17,18 @@ func main() {
 
 		page.Add(
 			&flet.Row{Controls: []flet.Control{
-				&flet.Button{Content: "Add", OnClick: func(e flet.Event) {
+				&flet.Button{Content: "Add", OnClick: func(e *flet.Event) {
 					n++
 					items.Controls = append(items.Controls, &flet.Text{Value: "Item " + strconv.Itoa(n)})
 					page.Update()
 				}},
-				&flet.Button{Content: "Remove first", OnClick: func(e flet.Event) {
+				&flet.Button{Content: "Remove first", OnClick: func(e *flet.Event) {
 					if len(items.Controls) > 0 {
 						items.Controls = items.Controls[1:]
 						page.Update()
 					}
 				}},
-				&flet.Button{Content: "Reverse", OnClick: func(e flet.Event) {
+				&flet.Button{Content: "Reverse", OnClick: func(e *flet.Event) {
 					slices.Reverse(items.Controls)
 					page.Update()
 				}},

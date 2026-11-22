@@ -115,7 +115,7 @@ Revised after studying the Flet source and building the prototype.
 | Phase | Deliverable | Estimate |
 |---|---|---|
 | 1. Prototype | Counter working end to end | ✅ Done |
-| 2. Controls | Core widget set (code generator) | 3 to 5 days |
+| 2. Controls | Core widget set (code generator) | ✅ Done |
 | 3. Full diff, methods, reconnection | Efficient updates and multiple users | 3 to 5 days |
 | 4. Server-backed web | Go binary serving the app | 1 to 2 days |
 | 5–6. Android + iOS | App running on device | 1 to 3 weeks |
@@ -171,12 +171,19 @@ app.go              → launches the client and waits for the connection
 page.go             → tree, diff and sending changes
 session.go          → client messages
 control.go          → control base and IDs
-controls.go         → Text, Button, Column, Row
-event.go            → events
+controls.go         → internal page root and view
+values.go           → Color, IconData, pointer helpers, value encoding
+event.go            → base event
+*_gen.go            → generated controls, value types, events and enums
+colors/, icons/     → generated named colors and icons
 internal/protocol/  → message format
 internal/client/    → finds, downloads and launches the client
+spec/               → Flet spec extracted from the Python SDK (+ icon tables)
+tools/specgen/      → extractor (Python, standard library only)
+tools/codegen/      → Go code generator
 examples/counter/   → the counter
 examples/list/      → add, remove and reorder list items
+examples/gallery/   → sample of generated controls and inputs
 ```
 
 `page_test.go` includes a fake client that applies patches the same way the Dart client does, so the diff can be tested without opening a window.
@@ -197,11 +204,38 @@ Optional environment variables:
 
 Automatic download: macOS and Windows. On Linux, use `FLET_CLIENT_PATH` for now.
 
+### Code generation (phase 2)
+
+The controls are generated from the Flet Python SDK, which is the most complete description of the client's controls:
+
+1. `python3 -I tools/specgen/extract.py <flet-checkout> spec/flet.json` reads the Python sources with `ast` and writes the spec. Only needed when updating the Flet version.
+2. `go generate ./...` runs `tools/codegen`, which writes `*_gen.go`, `colors/` and `icons/`.
+
+Generated for v1.1.2: 132 controls, 134 value types, 63 typed events, 96 enums, ~400 colors and ~10k icons.
+
+Type mapping rules:
+
+| Python | Go |
+|---|---|
+| `str`, `bool`, `int`, `Number` | `string`, `bool`, `int`, `float64` (zero = not sent) |
+| Same, with a non-zero default (e.g. `visible=True`, `opacity=1.0`) | Pointer: `*bool`, `*float64` (use `flet.Bool`, `flet.Float`) |
+| Enum | Named type with constants, e.g. `flet.FontWeightBold` |
+| `ColorValue`, `IconData` | `flet.Color` (`colors` package), `flet.IconData` (`icons` package) |
+| `DurationValue` | `time.Duration` (sent in milliseconds) |
+| Value dataclass | Pointer to a generated struct, e.g. `*flet.TextStyle` |
+| `Control`, `list[Control]` | `Control`, `[]Control` (tracked as children) |
+| `str` or `Control` | `any` holding a string or a control |
+| Other unions (e.g. `PaddingValue`) | `any`, e.g. `Padding: 16` or `Padding: &flet.Padding{...}` |
+| `on_*` handlers | `func(e *flet.Event)` or a typed event, e.g. `func(e *flet.TapEvent)` |
+
+Properties changed on the client (e.g. `TextField.value` while typing) are applied back to the Go struct.
+
 ### Known limitations
 
 - Events are handled one at a time, in arrival order.
 - No reconnection.
 - Automatic download not yet tested on Windows and not supported on Linux.
+- Not generated yet: canvas shapes, services (FilePicker, Clipboard...), extension packages (charts, maps, video...), control methods (e.g. `focus()`, dialogs), and 28 fields with rare types (dates, bytes).
 
 ---
 
@@ -213,4 +247,5 @@ Automatic download: macOS and Windows. On Linux, use `FLET_CLIENT_PATH` for now.
 4. ~~Counter working end to end~~.
 5. ~~Automatic client download~~ → macOS and Windows.
 6. ~~Item-by-item list diff and index cleanup~~ → add/remove/move ops, tested against a simulated client and the real one (`examples/list`).
-7. Phase 2: control generator from Flet's definitions.
+7. ~~Phase 2: control generator from Flet's definitions~~ → see "Code generation".
+8. Phase 3: control methods (invoke method), dialogs and services, reconnection.

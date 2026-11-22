@@ -66,9 +66,15 @@ func (s *session) handle(m protocol.Message) {
 		if c == nil {
 			return
 		}
-		c.handleEvent(Event{Control: c, Name: name, Data: m.Body["data"], Page: s.page})
+		c.handleEvent(&Event{Control: c, Name: name, Data: m.Body["data"], Page: s.page})
 
 	case protocol.ActionUpdateControlProps:
-		// E.g. window size. Not handled in the prototype yet.
+		// The client changed some properties, e.g. the text in a TextField.
+		if s.page == nil {
+			return
+		}
+		id, _ := protocol.ToInt64(m.Body["id"])
+		props, _ := m.Body["props"].(map[string]any)
+		s.page.applyClientProps(id, props)
 	}
 }

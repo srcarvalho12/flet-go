@@ -19,7 +19,7 @@ func main() {
 				txt,
 				&flet.Button{
 					Content: "+1",
-					OnClick: func(e flet.Event) {
+					OnClick: func(e *flet.Event) {
 						count++
 						txt.Value = strconv.Itoa(count)
 						page.Update()
