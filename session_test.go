@@ -19,7 +19,7 @@ type pipeClient struct {
 func dial(t *testing.T, srv *server) *pipeClient {
 	t.Helper()
 	cc, sc := net.Pipe()
-	go srv.serve(sc)
+	go srv.serve(socketTransport{sc}, clientInfo{})
 	c := &pipeClient{t: t, conn: cc, in: make(chan protocol.Message, 100)}
 	go func() {
 		defer close(c.in)
@@ -180,7 +180,7 @@ func TestReconnect(t *testing.T) {
 
 	// Updates keep working on the new connection.
 	txt.Value = "changed"
-	srv.pages[sid].Update()
+	srv.pages[sid].page.Update()
 	if p := c2.next(protocol.ActionPatchControl); p.Body["id"] != txt.ID() {
 		t.Fatalf("patch for %v", p.Body["id"])
 	}

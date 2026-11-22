@@ -36,8 +36,8 @@ const (
 )
 
 const (
-	packetMessage     = 0x00
-	packetDataChannel = 0x01
+	packetMessage = 0x00
+	// 0x01 is the binary data channel (not used yet).
 )
 
 // Message is a protocol frame.
@@ -46,21 +46,41 @@ type Message struct {
 	Body   map[string]any
 }
 
-// Write encodes the message and writes the full packet to w.
-func Write(w io.Writer, m Message) error {
+// Encode returns the packet for m without the length prefix:
+// [type:u8][msgpack body]. This is one WebSocket frame on the web.
+func Encode(m Message) ([]byte, error) {
 	body, err := msgpack.Marshal([]any{m.Action, m.Body})
 	if err != nil {
-		return fmt.Errorf("protocol: encode message: %w", err)
+		return nil, fmt.Errorf("protocol: encode message: %w", err)
 	}
-	packet := make([]byte, 4+1+len(body))
-	binary.LittleEndian.PutUint32(packet[0:4], uint32(1+len(body)))
-	packet[4] = packetMessage
-	copy(packet[5:], body)
+	return append([]byte{packetMessage}, body...), nil
+}
+
+// Decode parses a packet without the length prefix. ok is false for packets
+// that are not messages (e.g. the data channel), which are skipped.
+func Decode(packet []byte) (m Message, ok bool, err error) {
+	if len(packet) == 0 || packet[0] != packetMessage {
+		return Message{}, false, nil
+	}
+	m, err = decode(packet[1:])
+	return m, err == nil, err
+}
+
+// Write encodes the message and writes the full socket packet to w:
+// [length:u32 LE][type:u8][body].
+func Write(w io.Writer, m Message) error {
+	p, err := Encode(m)
+	if err != nil {
+		return err
+	}
+	packet := make([]byte, 4+len(p))
+	binary.LittleEndian.PutUint32(packet[0:4], uint32(len(p)))
+	copy(packet[4:], p)
 	_, err = w.Write(packet)
 	return err
 }
 
-// Read reads the next message packet. Data channel packets are skipped.
+// Read reads the next message from a socket. Data channel packets are skipped.
 func Read(r io.Reader) (Message, error) {
 	for {
 		var header [4]byte
@@ -68,17 +88,17 @@ func Read(r io.Reader) (Message, error) {
 			return Message{}, err
 		}
 		n := binary.LittleEndian.Uint32(header[:])
-		if n == 0 {
-			continue
-		}
 		packet := make([]byte, n)
 		if _, err := io.ReadFull(r, packet); err != nil {
 			return Message{}, err
 		}
-		if packet[0] != packetMessage {
-			continue
+		m, ok, err := Decode(packet)
+		if err != nil {
+			return Message{}, err
 		}
-		return decode(packet[1:])
+		if ok {
+			return m, nil
+		}
 	}
 }
 

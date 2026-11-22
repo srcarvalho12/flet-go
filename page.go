@@ -30,6 +30,16 @@ type Page struct {
 	PlatformBrightness Brightness
 	Web                bool
 	Route              string
+	// ClientIP and ClientUserAgent identify the browser (web only).
+	ClientIP, ClientUserAgent string
+
+	// OnConnect is called when the client reconnects to this page.
+	OnConnect func(e *Event)
+	// OnDisconnect is called when the connection drops.
+	OnDisconnect func(e *Event)
+	// OnClose is called when a disconnected session expires (web only).
+	// Use it to stop goroutines started for this page.
+	OnClose func(e *Event)
 
 	mu    sync.Mutex
 	send  func(protocol.Message)

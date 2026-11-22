@@ -6,38 +6,104 @@ import (
 	"net"
 	"runtime/debug"
 	"sync"
+	"time"
 
 	"github.com/srcarvalho12/flet-go/internal/protocol"
 )
+
+// transport carries protocol messages: a local socket on desktop,
+// a WebSocket on the web.
+type transport interface {
+	Read() (protocol.Message, error)
+	Write(protocol.Message) error
+}
+
+// socketTransport is the desktop transport: length-prefixed packets.
+type socketTransport struct{ conn net.Conn }
+
+func (t socketTransport) Read() (protocol.Message, error) { return protocol.Read(t.conn) }
+func (t socketTransport) Write(m protocol.Message) error  { return protocol.Write(t.conn, m) }
+
+// clientInfo describes the connection, when known (web).
+type clientInfo struct {
+	ip, userAgent string
+}
 
 // server keeps the pages of all sessions, so a client that reconnects with
 // its session id gets its page back instead of a fresh one.
 type server struct {
 	main  func(*Page)
 	debug bool
+	// timeout is how long a disconnected session is kept (0 = forever).
+	timeout time.Duration
 
 	mu    sync.Mutex
-	pages map[string]*Page
+	pages map[string]*sessionState
+}
+
+// sessionState is a page plus its connection state, guarded by server.mu.
+type sessionState struct {
+	page      *Page
+	connected bool
+	// gen changes on every connect, so an old expiry timer does nothing.
+	gen int
 }
 
 func newServer(main func(*Page), debug bool) *server {
-	return &server{main: main, debug: debug, pages: map[string]*Page{}}
+	return &server{main: main, debug: debug, pages: map[string]*sessionState{}}
 }
 
 // serve runs one client connection until it closes.
-func (srv *server) serve(conn net.Conn) error {
-	s := &session{srv: srv, conn: conn}
+func (srv *server) serve(t transport, info clientInfo) error {
+	s := &session{srv: srv, t: t, info: info}
 	err := s.run()
 	if s.page != nil {
-		s.page.disconnect()
+		srv.disconnected(s.sid)
 	}
 	return err
+}
+
+// disconnected marks a session as waiting for its client and schedules
+// its expiry.
+func (srv *server) disconnected(sid string) {
+	srv.mu.Lock()
+	st := srv.pages[sid]
+	if st == nil {
+		srv.mu.Unlock()
+		return
+	}
+	st.connected = false
+	gen := st.gen
+	srv.mu.Unlock()
+
+	p := st.page
+	p.disconnect()
+	p.queue.post(func() { p.fire(p.OnDisconnect) })
+	if srv.timeout > 0 {
+		time.AfterFunc(srv.timeout, func() { srv.expire(sid, gen) })
+	}
+}
+
+// expire drops a session whose client did not come back in time.
+func (srv *server) expire(sid string, gen int) {
+	srv.mu.Lock()
+	st := srv.pages[sid]
+	if st == nil || st.connected || st.gen != gen {
+		srv.mu.Unlock()
+		return
+	}
+	delete(srv.pages, sid)
+	srv.mu.Unlock()
+	p := st.page
+	p.queue.post(func() { p.fire(p.OnClose) })
 }
 
 // session is one connection with a client.
 type session struct {
 	srv  *server
-	conn net.Conn
+	t    transport
+	info clientInfo
+	sid  string
 	page *Page
 	wmu  sync.Mutex
 }
@@ -48,7 +114,7 @@ func (s *session) send(m protocol.Message) {
 	if s.srv.debug {
 		log.Printf("→ action %d: %v", m.Action, m.Body)
 	}
-	if err := protocol.Write(s.conn, m); err != nil {
+	if err := s.t.Write(m); err != nil {
 		log.Printf("flet: send error: %v", err)
 	}
 }
@@ -56,7 +122,7 @@ func (s *session) send(m protocol.Message) {
 // run reads messages until the connection closes.
 func (s *session) run() error {
 	for {
-		m, err := protocol.Read(s.conn)
+		m, err := s.t.Read()
 		if err != nil {
 			return err
 		}
@@ -100,16 +166,22 @@ func (s *session) register(body map[string]any) {
 	sid, _ := body["session_id"].(string)
 	info, _ := body["page"].(map[string]any)
 
+	// Reattach only to a session that is not connected elsewhere (the same
+	// session id may be shared by two browser tabs).
 	s.srv.mu.Lock()
-	p := s.srv.pages[sid]
-	isNew := p == nil
+	st := s.srv.pages[sid]
+	isNew := st == nil || st.connected
 	if isNew {
 		sid = randomID()
-		p = newPage(s.send)
-		s.srv.pages[sid] = p
+		st = &sessionState{page: newPage(s.send)}
+		st.page.ClientIP, st.page.ClientUserAgent = s.info.ip, s.info.userAgent
+		s.srv.pages[sid] = st
 	}
+	st.connected = true
+	st.gen++
 	s.srv.mu.Unlock()
-	s.page = p
+	p := st.page
+	s.sid, s.page = sid, p
 
 	s.send(protocol.Message{
 		Action: protocol.ActionRegisterClient,
@@ -121,6 +193,8 @@ func (s *session) register(body map[string]any) {
 	})
 	if isNew {
 		s.post(func() { s.srv.main(p) })
+	} else {
+		s.post(func() { p.fire(p.OnConnect) })
 	}
 }
 
@@ -180,4 +254,11 @@ func (p *Page) dispatch(target int64, name string, data any) {
 		return
 	}
 	c.handleEvent(&Event{Control: c, Name: name, Data: data, Page: p})
+}
+
+// fire calls a page lifecycle handler.
+func (p *Page) fire(h func(e *Event)) {
+	if h != nil {
+		h(&Event{Control: p.root, Page: p})
+	}
 }

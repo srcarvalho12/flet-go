@@ -23,6 +23,14 @@ const Version = "1.1.2"
 // EnvURL overrides the client download URL (useful for tests and mirrors).
 const EnvURL = "FLET_CLIENT_URL"
 
+// EnvWebPath points to an extracted web client; when unset it is downloaded.
+const EnvWebPath = "FLET_WEB_PATH"
+
+// EnvWebURL overrides the web client download URL.
+const EnvWebURL = "FLET_WEB_URL"
+
+const webArtifact = "flet-web.tar.gz"
+
 // artifact returns the release file name for the current OS.
 func artifact() (string, error) {
 	switch runtime.GOOS {
@@ -34,13 +42,32 @@ func artifact() (string, error) {
 	return "", fmt.Errorf("automatic client download is not supported on %s yet; set %s", runtime.GOOS, EnvPath)
 }
 
-// cacheDir is where the extracted client is stored.
-func cacheDir() (string, error) {
+// cacheDir is where an extracted client is stored ("client" or "web").
+func cacheDir(kind string) (string, error) {
 	base, err := os.UserCacheDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(base, "flet-go", "client", "v"+Version), nil
+	return filepath.Join(base, "flet-go", kind, "v"+Version), nil
+}
+
+// ResolveWeb returns the folder with the web client (index.html and assets).
+// Order: FLET_WEB_PATH → local cache → download.
+func ResolveWeb() (string, error) {
+	if p := os.Getenv(EnvWebPath); p != "" {
+		return p, nil
+	}
+	dir, err := cacheDir("web")
+	if err != nil {
+		return "", err
+	}
+	if _, err := os.Stat(dir); err == nil {
+		return dir, nil
+	}
+	if err := install(dir, webArtifact, EnvWebURL, "web client"); err != nil {
+		return "", err
+	}
+	return dir, nil
 }
 
 // Resolve returns the path of the client executable.
@@ -49,14 +76,18 @@ func Resolve() (string, error) {
 	if p := os.Getenv(EnvPath); p != "" {
 		return executable(p)
 	}
-	dir, err := cacheDir()
+	dir, err := cacheDir("client")
 	if err != nil {
 		return "", err
 	}
 	if _, err := os.Stat(dir); err == nil {
 		return executable(dir)
 	}
-	if err := install(dir); err != nil {
+	name, err := artifact()
+	if err != nil {
+		return "", err
+	}
+	if err := install(dir, name, EnvURL, "client"); err != nil {
 		return "", err
 	}
 	return executable(dir)
@@ -95,15 +126,11 @@ func appExecutable(app string) (string, error) {
 	return filepath.Join(app, "Contents", "MacOS", entries[0].Name()), nil
 }
 
-// install downloads and extracts the client into dir.
+// install downloads the release file name and extracts it into dir.
 // It extracts into a temporary folder and renames it at the end,
 // so a half-extracted cache is never left behind.
-func install(dir string) error {
-	name, err := artifact()
-	if err != nil {
-		return err
-	}
-	url := os.Getenv(EnvURL)
+func install(dir, name, envURL, label string) error {
+	url := os.Getenv(envURL)
 	if url == "" {
 		url = fmt.Sprintf("https://github.com/flet-dev/flet/releases/download/v%s/%s", Version, name)
 	}
@@ -112,7 +139,7 @@ func install(dir string) error {
 		return err
 	}
 
-	fmt.Fprintf(os.Stderr, "Preparing Flet client v%s (first run only)...\n", Version)
+	fmt.Fprintf(os.Stderr, "Preparing Flet %s v%s (first run only)...\n", label, Version)
 	archive, err := download(url, filepath.Dir(dir))
 	if err != nil {
 		return err

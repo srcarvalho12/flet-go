@@ -145,7 +145,7 @@ Revised after studying the Flet source and building the prototype.
 | 1. Prototype | Counter working end to end | ✅ Done |
 | 2. Controls | Core widget set (code generator) | ✅ Done |
 | 3. Methods, dialogs, services, reconnection | Client calls and a page that survives a dropped connection | ✅ Done |
-| 4. Server-backed web | Go binary serving the app | 1 to 2 days |
+| 4. Server-backed web | Go binary serving the app | ✅ Done |
 | 5–6. Android + iOS | App running on device | 1 to 3 weeks |
 | 7. CLI and packaging | Something like `flet-go build` | 2 to 4 days |
 | Later (optional). Declarative mode | Components and hooks (see section 3) | 2 to 4 days |
@@ -199,7 +199,8 @@ It proves:
 ### Current layout
 
 ```
-app.go              → launches the client and accepts its connections
+app.go              → desktop: launches the client and accepts its connections
+web.go              → web: serves the web client and the WebSocket
 page.go             → tree, diff, dialogs and sending changes
 session.go          → client messages, sessions and reconnection
 invoke.go           → client method calls and the event queue
@@ -211,7 +212,7 @@ event.go            → base event
 *_gen.go            → generated controls, value types, events and enums
 colors/, icons/     → generated named colors and icons
 internal/protocol/  → message format
-internal/client/    → finds, downloads and launches the client
+internal/client/    → finds, downloads and launches the client (desktop and web)
 spec/               → Flet spec extracted from the Python SDK (+ icon tables)
 tools/specgen/      → extractor (Python, standard library only)
 tools/codegen/      → Go code generator
@@ -219,6 +220,7 @@ examples/counter/   → the counter
 examples/list/      → add, remove and reorder list items
 examples/gallery/   → sample of generated controls and inputs
 examples/services/  → dialogs, snack bar, focus, clipboard, file picker, window
+examples/web/       → the counter served to the browser
 ```
 
 `page_test.go` includes a fake client that applies patches the same way the Dart client does, so the diff can be tested without opening a window.
@@ -236,8 +238,24 @@ Optional environment variables:
 | `FLET_CLIENT_PATH` | Use an installed client (folder, `.app` or executable) |
 | `FLET_CLIENT_URL` | Download the client from another URL (mirror or test) |
 | `FLETGO_DEBUG=1` | Log the messages exchanged with the client |
+| `FLET_WEB_PATH` | Use an extracted web client folder |
+| `FLET_WEB_URL` | Download the web client from another URL |
+| `FLET_SESSION_TIMEOUT` | Seconds a web session is kept after its tab disconnects (default 3600) |
 
-Automatic download: macOS and Windows. On Linux, use `FLET_CLIENT_PATH` for now.
+Automatic download: macOS and Windows. On Linux, use `FLET_CLIENT_PATH` for now. The web client downloads on any OS.
+
+### Web (phase 4)
+
+Replace `flet.App(main)` with `flet.Serve(":8550", main)` and open `http://localhost:8550`. To mount it in your own server, use `flet.Handler(main)`, which returns an `http.Handler` (root path only for now).
+
+- **Web client:** `flet-web.tar.gz` from the Flet release, downloaded and cached on the first run (on macOS: `~/Library/Caches/flet-go/web/v1.1.2`).
+- **Transport:** a WebSocket at `/ws` (library: `github.com/coder/websocket`). Each binary message is one packet, `[type:u8][body]`, with no length prefix.
+- **Files:** existing files are served as is; paths without an extension (app routes) get `index.html`; missing assets are a 404. Folders are not listed.
+- **Sessions:** each browser tab is a session with its own page. A reloaded tab gets its page back. A disconnected session is dropped after `FLET_SESSION_TIMEOUT`, and `page.OnClose` runs.
+- **Page info:** `page.Web`, `page.ClientIP` and `page.ClientUserAgent`; `page.OnConnect` and `page.OnDisconnect` follow the connection.
+- **Security:** the WebSocket only accepts pages from the same host (default origin check).
+
+Checked in the browser: the counter works, a reload keeps the count, a second tab has its own count, and there are no console errors.
 
 ### Code generation (phase 2)
 
@@ -288,7 +306,9 @@ Required parameters are positional; optional ones go in an `...Options` struct. 
 ### Known limitations
 
 - Events are handled one at a time, in arrival order. A handler waiting on a slow method (e.g. the file picker) holds back the next events.
-- Sessions are kept while the program runs; there is no expiry yet (needed for web).
+- Desktop sessions are kept while the window is open; web sessions expire (see "Web").
+- `flet.Handler` must be mounted at the root path; a base path (e.g. `/app/`) is not supported yet.
+- No file uploads (`FilePicker.Upload`) on the web yet: they need an upload endpoint.
 - Page events (`on_resize`, `on_route_change`...), routing and page methods (`push_route`, `get_device_info`) are not exposed yet.
 - `Share` methods are not generated yet.
 - Automatic download not yet tested on Windows and not supported on Linux.
@@ -306,4 +326,5 @@ Required parameters are positional; optional ones go in an `...Options` struct. 
 6. ~~Item-by-item list diff and index cleanup~~ → add/remove/move ops, tested against a simulated client and the real one (`examples/list`).
 7. ~~Phase 2: control generator from Flet's definitions~~ → see "Code generation".
 8. ~~Phase 3: control methods, dialogs, services, reconnection~~ → see "Methods, dialogs and services".
-9. Phase 4: server-backed web (Go serves the Flutter web client over WebSocket), with session expiry.
+9. ~~Phase 4: server-backed web~~ → see "Web".
+10. Phase 5–6: Android and iOS (Go as a library started by the Flutter app).

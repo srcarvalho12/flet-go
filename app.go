@@ -56,7 +56,7 @@ func App(main func(page *Page)) error {
 			connected.Store(true)
 			go func() {
 				defer conn.Close()
-				err := srv.serve(conn)
+				err := srv.serve(socketTransport{conn}, clientInfo{})
 				if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, net.ErrClosed) {
 					log.Printf("flet: connection error: %v", err)
 				}
