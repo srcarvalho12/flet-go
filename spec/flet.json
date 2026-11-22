@@ -640,6 +640,64 @@
      "metadata": {},
      "default_factory": "lambda : Dialogs()"
     }
+   ],
+   "methods": [
+    {
+     "name": "take_screenshot",
+     "params": [
+      {
+       "name": "pixel_ratio",
+       "type": "Optional[Number]",
+       "default": "None"
+      },
+      {
+       "name": "delay",
+       "type": "Optional[DurationValue]",
+       "default": "None"
+      }
+     ],
+     "returns": "bytes",
+     "doc": "Captures a screenshot of the entire page with overlays.\n\nArgs:\n    pixel_ratio: A pixel ratio of the captured screenshot.\n        If `None`, device-specific pixel ratio will be used.\n    delay: A delay before taking a screenshot.\n        The delay will be 20 milliseconds if not specified.\n\nReturns:\n    Screenshot in PNG format.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "take_screenshot",
+     "timeout": null,
+     "args": {
+      "pixel_ratio": "pixel_ratio",
+      "delay": "delay"
+     }
+    },
+    {
+     "name": "take_animation",
+     "params": [
+      {
+       "name": "name",
+       "type": "str",
+       "default": null
+      },
+      {
+       "name": "frame_delays_ms",
+       "type": "list[int]",
+       "default": null
+      },
+      {
+       "name": "pixel_ratio",
+       "type": "Optional[Number]",
+       "default": "None"
+      }
+     ],
+     "returns": "list[bytes]",
+     "doc": "Captures an animated sequence of page screenshots in a single\nround-trip. Each entry in `frame_delays_ms` is the delay in\nmilliseconds to wait before capturing that frame. The wait and\ncapture loop runs entirely on the Flutter side, so animation\ntiming isn't distorted by Python-Flutter RPC latency the way it\nis with a Python-driven `take_screenshot` loop.\n\nRequires `enable_screenshots` = `True`.\n\nArgs:\n    name: Name prefix for the captured frames (for debugging).\n    frame_delays_ms: Per-frame delays in milliseconds. The list\n        length determines the number of frames captured.\n    pixel_ratio: A pixel ratio of the captured frames.\n        If `None`, device-specific pixel ratio will be used.\n\nReturns:\n    List of PNG-encoded frames, one per entry in `frame_delays_ms`.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "take_animation",
+     "timeout": null,
+     "args": {
+      "name": "name",
+      "frame_delays_ms": "frame_delays_ms",
+      "pixel_ratio": "pixel_ratio"
+     }
+    }
    ]
   },
   {
@@ -3773,6 +3831,47 @@
      "metadata": {},
      "doc": "Called when the size of this canvas has changed."
     }
+   ],
+   "methods": [
+    {
+     "name": "capture",
+     "params": [
+      {
+       "name": "pixel_ratio",
+       "type": "Optional[Number]",
+       "default": "None"
+      }
+     ],
+     "returns": null,
+     "doc": "Captures the current visual state of the canvas.\n\nThe captured image is stored internally and will be rendered as a background\nbeneath all subsequently drawn shapes.\n\nArgs:\n    pixel_ratio:\n        The pixel density multiplier to use when rendering the capture.\n        `1.0` means 1 device pixel per logical pixel (no scaling).\n        Values greater than `1.0` produce higher-resolution captures.\n        If `None`, the device's default pixel ratio is used.",
+     "simple": true,
+     "invoke": "capture",
+     "timeout": null,
+     "args": {
+      "pixel_ratio": "pixel_ratio"
+     }
+    },
+    {
+     "name": "get_capture",
+     "params": [],
+     "returns": "bytes",
+     "doc": "Retrieves the most recent canvas capture as PNG bytes.\n\nReturns:\n    bytes: The captured image in PNG format, or an empty result\n    if no capture has been made.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_capture",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "clear_capture",
+     "params": [],
+     "returns": null,
+     "doc": "Clears the previously captured canvas image.\n\nAfter clearing, no background will be rendered from a prior capture.",
+     "simple": true,
+     "invoke": "clear_capture",
+     "timeout": null,
+     "args": {}
+    }
    ]
   },
   {
@@ -4530,6 +4629,26 @@
      "metadata": {},
      "doc": "Called when this dismissible changes size, for example, when contracting before     being dismissed."
     }
+   ],
+   "methods": [
+    {
+     "name": "confirm_dismiss",
+     "params": [
+      {
+       "name": "dismiss",
+       "type": "bool",
+       "default": null
+      }
+     ],
+     "returns": null,
+     "doc": "Resolve a pending dismissal decision triggered by :attr:`on_confirm_dismiss`.\n\nCall this method from your confirmation flow after handling\n:attr:`on_confirm_dismiss`.\n\nArgs:\n    dismiss: `True` to continue dismissing the control, `False` to cancel\n        and return it to the original position.",
+     "simple": true,
+     "invoke": "confirm_dismiss",
+     "timeout": null,
+     "args": {
+      "dismiss": "dismiss"
+     }
+    }
    ]
   },
   {
@@ -4966,6 +5085,33 @@
      "default": "None",
      "metadata": {},
      "doc": "Fires once per stdout/stderr write inside the embedded Pyodide app.\n    Pyodide line-buffers by default, so each event is typically one\n    `print(...)` call. Only fires for embedded FletApps with\n    `force_pyodide=True`; root-level Pyodide pages have nowhere to\n    bubble the event."
+    }
+   ],
+   "methods": [
+    {
+     "name": "wait_idle",
+     "params": [
+      {
+       "name": "idle_ms",
+       "type": "int",
+       "default": "300"
+      },
+      {
+       "name": "timeout_ms",
+       "type": "int",
+       "default": "30000"
+      }
+     ],
+     "returns": "dict[str, Any]",
+     "doc": "Waits until the embedded app has rendered its UI and gone quiet.\n\nUseful for a host that needs to know when the embedded app is ready,\ne.g. before taking a screenshot of it or reading its output after a\nrestart.\n\nArgs:\n    idle_ms: How long, in milliseconds, the embedded app must send no\n        UI updates after its first one to count as idle.\n    timeout_ms: Give up after this many milliseconds.\n\nReturns:\n    A dict with `status` and `error`. `status` is `\"idle\"` once the\n    app sent at least one UI update, then none for `idle_ms`, and\n    that update is on screen; `\"error\"` if the app failed to start\n    or crashed (`error` holds the message; `on_error` fires as\n    well); `\"timeout\"` if it didn't settle within `timeout_ms`, for\n    example an app that updates continuously. A new call supersedes\n    a pending one, which returns `\"timeout\"`.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "wait_idle",
+     "timeout": "timeout_ms / 1000 + 5",
+     "args": {
+      "idle_ms": "idle_ms",
+      "timeout_ms": "timeout_ms"
+     }
     }
    ]
   },
@@ -6047,6 +6193,116 @@
      "metadata": {},
      "doc": "Called when the effective transform changes.\n\n    Fires for pinch and pan gestures, pointer-wheel or trackpad zoom, and for\n    :meth:`zoom`, :meth:`pan`, :meth:`reset` and :meth:`restore_state`.\n    :meth:`save_state` only stores a snapshot, so it does not fire this event.\n    Intermediate updates are limited to :attr:`interaction_update_interval`\n    milliseconds. When changes stop, including the end of a wheel burst, an\n    inertial pan, :meth:`zoom` and an animated :meth:`reset`, one further\n    event is delivered if needed. That event matches :meth:`get_transform`.\n\n    ``on_interaction_update`` reports the gesture's relative scale, not this\n    absolute transform. Neither event is a physical length: the content's\n    laid-out size and any mapping from that content to the real world are\n    separate. If those change, this transform alone does not keep a\n    real-world measurement correct."
     }
+   ],
+   "methods": [
+    {
+     "name": "reset",
+     "params": [
+      {
+       "name": "animation_duration",
+       "type": "Optional[DurationValue]",
+       "default": "None"
+      }
+     ],
+     "returns": null,
+     "doc": "Resets the current transform matrix to identity.\n\nArgs:\n    animation_duration: Optional animation duration for the reset\n        transition. If `None`, the reset is applied immediately.\n\nNotes:\n    When `animation_duration` is provided, Flutter interpolates from\n    the current transform to identity using a matrix tween.",
+     "simple": true,
+     "invoke": "reset",
+     "timeout": null,
+     "args": {
+      "animation_duration": "animation_duration"
+     }
+    },
+    {
+     "name": "save_state",
+     "params": [],
+     "returns": null,
+     "doc": "Saves a snapshot of the current transform matrix.\n\nThe saved state can later be restored using\n:meth:`restore_state`. Calling this method again\noverwrites the previously saved snapshot.",
+     "simple": true,
+     "invoke": "save_state",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "restore_state",
+     "params": [],
+     "returns": null,
+     "doc": "Restores the transform matrix previously captured by\n:meth:`save_state`.\n\nIf no state has been saved yet, this method has no effect.",
+     "simple": true,
+     "invoke": "restore_state",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "zoom",
+     "params": [
+      {
+       "name": "factor",
+       "type": "Number",
+       "default": null
+      }
+     ],
+     "returns": null,
+     "doc": "Applies multiplicative zoom to the current transform.\n\nArgs:\n    factor: Scale multiplier relative to the current scale.\n        Values greater than `1` zoom in, values between `0` and `1`\n        zoom out.\n\nNote:\n    The resulting scale is clamped to :attr:`min_scale` and\n    :attr:`max_scale`. Additional boundary clamping is applied so the\n    visible viewport remains within :attr:`boundary_margin` limits.",
+     "simple": true,
+     "invoke": "zoom",
+     "timeout": null,
+     "args": {
+      "factor": "factor"
+     }
+    },
+    {
+     "name": "pan",
+     "params": [
+      {
+       "name": "dx",
+       "type": "Number",
+       "default": null
+      },
+      {
+       "name": "dy",
+       "type": "Number",
+       "default": "0"
+      },
+      {
+       "name": "dz",
+       "type": "Number",
+       "default": "0"
+      }
+     ],
+     "returns": null,
+     "doc": "Translates the current transform matrix.\n\nArgs:\n    dx: Horizontal translation delta in logical pixels.\n    dy: Vertical translation delta in logical pixels.\n    dz: Z-axis translation delta applied to the transform matrix.\n\nNote:\n    XY translation is clamped to the same interaction boundaries used\n    for gesture-driven panning. `dz` is applied directly to the matrix\n    and defaults to `0`.",
+     "simple": true,
+     "invoke": "pan",
+     "timeout": null,
+     "args": {
+      "dx": "dx",
+      "dy": "dy",
+      "dz": "dz"
+     }
+    },
+    {
+     "name": "get_scale",
+     "params": [],
+     "returns": "float",
+     "doc": "Return the effective scale currently applied to :attr:`content`.\n\nReturns:\n    ``1.0`` for identity, after min/max scale and boundary clamping.\n    This is the scale of the laid-out content, not a ratio against\n    the content's original pixel size, and not a physical length.\n\nRaises:\n    RuntimeError: If this control is not on a page.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_scale",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "get_transform",
+     "params": [],
+     "returns": "InteractiveViewerTransform",
+     "doc": "Return the effective transform currently applied to :attr:`content`.\n\nReturns:\n    Scale, translation and the column-major 4x4 matrix, after\n    clamping. A physical length also needs the content's laid-out\n    size and a mapping from that content to the real world.\n\nRaises:\n    RuntimeError: If this control is not on a page.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_transform",
+     "timeout": null,
+     "args": {}
+    }
    ]
   },
   {
@@ -6154,6 +6410,18 @@
      "default": "None",
      "metadata": {},
      "doc": "Fires when a keyboard key is being hold, causing repeated events."
+    }
+   ],
+   "methods": [
+    {
+     "name": "focus",
+     "params": [],
+     "returns": null,
+     "doc": "Requests focus for this control.",
+     "simple": true,
+     "invoke": "focus",
+     "timeout": null,
+     "args": {}
     }
    ]
   },
@@ -7676,6 +7944,122 @@
      "metadata": {},
      "doc": "Fired when the visible page changes.\n\n    The :attr:`flet.Event.data` property of the event argument contains\n    the index of the new page."
     }
+   ],
+   "methods": [
+    {
+     "name": "go_to_page",
+     "params": [
+      {
+       "name": "index",
+       "type": "int",
+       "default": null
+      },
+      {
+       "name": "animation_duration",
+       "type": "DurationValue",
+       "default": "DEFAULT_ANIMATION_DURATION"
+      },
+      {
+       "name": "animation_curve",
+       "type": "AnimationCurve",
+       "default": "DEFAULT_ANIMATION_CURVE"
+      }
+     ],
+     "returns": null,
+     "doc": "Animates to the page at `index`.\n\nArgs:\n    index: The index of the page to show.\n    animation_duration: Length of the animation.\n    animation_curve: The easing curve of the animation.\n\nRaises:\n    ValueError: If `index` is negative.",
+     "simple": true,
+     "invoke": "go_to_page",
+     "timeout": null,
+     "args": {
+      "index": "index",
+      "duration": "animation_duration",
+      "curve": "animation_curve"
+     }
+    },
+    {
+     "name": "jump_to_page",
+     "params": [
+      {
+       "name": "index",
+       "type": "int",
+       "default": null
+      }
+     ],
+     "returns": null,
+     "doc": "Jumps immediately to the page at `index` without animation, moving the page\nposition from its current value to the given value without animation nor\nrange checking.\n\nArgs:\n    index: The index of the page to show.\n\nRaises:\n    ValueError: If `index` is negative.",
+     "simple": true,
+     "invoke": "jump_to_page",
+     "timeout": null,
+     "args": {
+      "index": "index"
+     }
+    },
+    {
+     "name": "jump_to",
+     "params": [
+      {
+       "name": "value",
+       "type": "Number",
+       "default": null
+      }
+     ],
+     "returns": null,
+     "doc": "Immediately sets the scroll position to the given value, without animation\nand without validating whether the value is within bounds.\n\nAny active scrolling or animation is canceled.\n\nIf the scroll position changes, a start/update/end sequence of scroll\nnotifications is dispatched. This method does not generate overscroll\nnotifications.\n\nAfter the jump, a ballistic activity is initiated if the value is outside\nthe valid scroll range.\n\nArgs:\n    value: The new scroll position.",
+     "simple": true,
+     "invoke": "jump_to",
+     "timeout": null,
+     "args": {
+      "value": "value"
+     }
+    },
+    {
+     "name": "next_page",
+     "params": [
+      {
+       "name": "animation_duration",
+       "type": "DurationValue",
+       "default": "DEFAULT_ANIMATION_DURATION"
+      },
+      {
+       "name": "animation_curve",
+       "type": "AnimationCurve",
+       "default": "DEFAULT_ANIMATION_CURVE"
+      }
+     ],
+     "returns": null,
+     "doc": "Animates to the next page. Same as calling\n:meth:`flet.PageView.go_to_page` with `selected_index + 1`.\n\nArgs:\n    animation_duration: Length of the animation.\n    animation_curve: The easing curve of the animation.",
+     "simple": true,
+     "invoke": "next_page",
+     "timeout": null,
+     "args": {
+      "duration": "animation_duration",
+      "curve": "animation_curve"
+     }
+    },
+    {
+     "name": "previous_page",
+     "params": [
+      {
+       "name": "animation_duration",
+       "type": "DurationValue",
+       "default": "DEFAULT_ANIMATION_DURATION"
+      },
+      {
+       "name": "animation_curve",
+       "type": "AnimationCurve",
+       "default": "DEFAULT_ANIMATION_CURVE"
+      }
+     ],
+     "returns": null,
+     "doc": "Animates to the previous page. Same as calling\n:meth:`flet.PageView.go_to_page` with `selected_index - 1`.\n\nArgs:\n    animation_duration: Length of the animation.\n    animation_curve: The easing curve of the animation.",
+     "simple": true,
+     "invoke": "previous_page",
+     "timeout": null,
+     "args": {
+      "duration": "animation_duration",
+      "curve": "animation_curve"
+     }
+    }
    ]
   },
   {
@@ -7758,6 +8142,48 @@
      "default": "None",
      "metadata": {},
      "doc": "Background color of this Pagelet."
+    }
+   ],
+   "methods": [
+    {
+     "name": "show_drawer",
+     "params": [],
+     "returns": null,
+     "doc": "Show the drawer.\n\nRaises:\n    ValueError: If no :attr:`drawer` is defined.",
+     "simple": true,
+     "invoke": "show_drawer",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "close_drawer",
+     "params": [],
+     "returns": null,
+     "doc": "Close the drawer.",
+     "simple": true,
+     "invoke": "close_drawer",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "show_end_drawer",
+     "params": [],
+     "returns": null,
+     "doc": "Show the end drawer.\n\nRaises:\n    ValueError: If no :attr:`end_drawer` is defined.",
+     "simple": true,
+     "invoke": "show_end_drawer",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "close_end_drawer",
+     "params": [],
+     "returns": null,
+     "doc": "Close the end drawer.",
+     "simple": true,
+     "invoke": "close_end_drawer",
+     "timeout": null,
+     "args": {}
     }
    ]
   },
@@ -8142,6 +8568,33 @@
      "default": null,
      "metadata": {},
      "doc": "The control to be captured."
+    }
+   ],
+   "methods": [
+    {
+     "name": "capture",
+     "params": [
+      {
+       "name": "pixel_ratio",
+       "type": "Optional[Number]",
+       "default": "None"
+      },
+      {
+       "name": "delay",
+       "type": "Optional[DurationValue]",
+       "default": "None"
+      }
+     ],
+     "returns": "bytes",
+     "doc": "Captures a screenshot of the enclosed content control.\n\nArgs:\n    pixel_ratio: A pixel ratio of the captured screenshot.\n        If `None`, device-specific pixel ratio will be used.\n    delay: A delay before taking a screenshot.\n        The delay will be 20 milliseconds if not specified.\n\nReturns:\n    Screenshot in PNG format.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "capture",
+     "timeout": null,
+     "args": {
+      "pixel_ratio": "pixel_ratio",
+      "delay": "delay"
+     }
     }
    ]
   },
@@ -9310,6 +9763,66 @@
      "metadata": {},
      "doc": "An event handler that is called when the view is about to be popped.\n    You can use this event to confirm or cancel the pop action by calling\n    :meth:`confirm_pop` method."
     }
+   ],
+   "methods": [
+    {
+     "name": "confirm_pop",
+     "params": [
+      {
+       "name": "should_pop",
+       "type": "bool",
+       "default": null
+      }
+     ],
+     "returns": "None",
+     "doc": "Resolves a pending pop-confirmation request for this view.\n\nCall this from :attr:`on_confirm_pop` to allow or cancel the current\nback-navigation attempt.\n\nArgs:\n    should_pop: `True` to proceed with popping this view, `False` to\n        keep the view on the navigation stack.\n\nNotes:\n    - This method only has effect while a pop confirmation is pending.\n    - If not called, the frontend confirmation wait times out and the\n        pop is canceled.",
+     "simple": true,
+     "invoke": "confirm_pop",
+     "timeout": null,
+     "args": {
+      "should_pop": "should_pop"
+     }
+    },
+    {
+     "name": "show_drawer",
+     "params": [],
+     "returns": null,
+     "doc": "Show the drawer.\n\nRaises:\n    ValueError: If no :attr:`drawer` is defined.",
+     "simple": true,
+     "invoke": "show_drawer",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "close_drawer",
+     "params": [],
+     "returns": null,
+     "doc": "Close the drawer.",
+     "simple": true,
+     "invoke": "close_drawer",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "show_end_drawer",
+     "params": [],
+     "returns": null,
+     "doc": "Show the end drawer.\n\nRaises:\n    ValueError: If no :attr:`end_drawer` is defined.",
+     "simple": true,
+     "invoke": "show_end_drawer",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "close_end_drawer",
+     "params": [],
+     "returns": null,
+     "doc": "Close the end drawer.",
+     "simple": true,
+     "invoke": "close_end_drawer",
+     "timeout": null,
+     "args": {}
+    }
    ]
   },
   {
@@ -9721,6 +10234,86 @@
      "default": "None",
      "metadata": {},
      "doc": "Called when app window changes its state.\n    For example, when the window is maximized or minimized."
+    }
+   ],
+   "methods": [
+    {
+     "name": "wait_until_ready_to_show",
+     "params": [],
+     "returns": null,
+     "doc": "Waits until the app window is ready to show.",
+     "simple": true,
+     "invoke": "wait_until_ready_to_show",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "destroy",
+     "params": [],
+     "returns": null,
+     "doc": "Destroys the app window.",
+     "simple": true,
+     "invoke": "destroy",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "center",
+     "params": [],
+     "returns": null,
+     "doc": "Centers the app window.",
+     "simple": true,
+     "invoke": "center",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "close",
+     "params": [],
+     "returns": null,
+     "doc": "Requests graceful closing of the app window.\n\nThis sends a native close request equivalent to pressing the window\nclose button. If :attr:`prevent_close` is enabled, the close may be\nintercepted and reported via :attr:`on_event` with\n:attr:`flet.WindowEventType.CLOSE`.",
+     "simple": true,
+     "invoke": "close",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "to_front",
+     "params": [],
+     "returns": null,
+     "doc": "Brings the app window to the front.",
+     "simple": true,
+     "invoke": "to_front",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "start_dragging",
+     "params": [],
+     "returns": null,
+     "doc": "Starts dragging the app window.",
+     "simple": true,
+     "invoke": "start_dragging",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "start_resizing",
+     "params": [
+      {
+       "name": "edge",
+       "type": "WindowResizeEdge",
+       "default": null
+      }
+     ],
+     "returns": null,
+     "doc": "Starts resizing the app window.",
+     "simple": true,
+     "invoke": "start_resizing",
+     "timeout": null,
+     "args": {
+      "edge": "edge"
+     }
     }
    ]
   },
@@ -10301,6 +10894,18 @@
      "default": "None",
      "metadata": {},
      "doc": "Called when this button loses focus."
+    }
+   ],
+   "methods": [
+    {
+     "name": "focus",
+     "params": [],
+     "returns": null,
+     "doc": "Requests focus for this control.",
+     "simple": true,
+     "invoke": "focus",
+     "timeout": null,
+     "args": {}
     }
    ]
   },
@@ -15538,6 +16143,18 @@
      "default": "(V.ensure(lambda ctrl: (isinstance(ctrl.icon, IconData) or (isinstance(ctrl.icon, Control) and ctrl.icon.visible)) or (isinstance(ctrl.content, str) or (isinstance(ctrl.content, Control) and ctrl.content.visible)), message='at least icon or content (string or visible Control) must be provided'),)",
      "metadata": {}
     }
+   ],
+   "methods": [
+    {
+     "name": "focus",
+     "params": [],
+     "returns": null,
+     "doc": "Requests focus for this control.",
+     "simple": true,
+     "invoke": "focus",
+     "timeout": null,
+     "args": {}
+    }
    ]
   },
   {
@@ -16545,6 +17162,32 @@
      "default": "None",
      "metadata": {},
      "doc": "Fires when the menu is dismissed without a selection, or when an attempt is made     to open the menu but no items are available."
+    }
+   ],
+   "methods": [
+    {
+     "name": "open",
+     "params": [
+      {
+       "name": "global_position",
+       "type": "Optional[OffsetValue]",
+       "default": "None"
+      },
+      {
+       "name": "local_position",
+       "type": "Optional[OffsetValue]",
+       "default": "None"
+      }
+     ],
+     "returns": "None",
+     "doc": "Opens the context menu programmatically, and displays :attr:`items`.\n\nArgs:\n    global_position: A global coordinate describing where the menu\n        should appear. If omitted, `local_position` or the center of the\n        :attr:`content` is used.\n    local_position: A local coordinate relative to the :attr:`content`.\n        When provided without `global_position`, the coordinate is translated\n        to global space automatically.",
+     "simple": true,
+     "invoke": "open",
+     "timeout": null,
+     "args": {
+      "global_position": "global_position",
+      "local_position": "local_position"
+     }
     }
    ]
   },
@@ -17798,6 +18441,18 @@
      "metadata": {},
      "doc": "The :class:`~flet.TextStyle` to use for :attr:`helper_text`."
     }
+   ],
+   "methods": [
+    {
+     "name": "focus",
+     "params": [],
+     "returns": null,
+     "doc": "Requests focus for this control.",
+     "simple": true,
+     "invoke": "focus",
+     "timeout": null,
+     "args": {}
+    }
    ]
   },
   {
@@ -19024,6 +19679,18 @@
      "metadata": {},
      "doc": "The text style to use for :attr:`suffix`."
     }
+   ],
+   "methods": [
+    {
+     "name": "focus",
+     "params": [],
+     "returns": null,
+     "doc": "Request focus for this control.\n\nExample:\n    ```python\n    async def main(page: ft.Page):\n        page.add(ctf := ft.TextField())\n        await ctf.focus()\n    ```",
+     "simple": true,
+     "invoke": "focus",
+     "timeout": null,
+     "args": {}
+    }
    ]
   },
   {
@@ -19232,6 +19899,18 @@
      "default": "None",
      "metadata": {},
      "doc": "Called when this button has lost focus."
+    }
+   ],
+   "methods": [
+    {
+     "name": "focus",
+     "params": [],
+     "returns": null,
+     "doc": "Moves focus to this button.",
+     "simple": true,
+     "invoke": "focus",
+     "timeout": null,
+     "args": {}
     }
    ]
   },
@@ -20462,6 +21141,18 @@
      "default": "(V.ensure(lambda ctrl: (isinstance(ctrl.icon, IconData) or (isinstance(ctrl.icon, Control) and ctrl.icon.visible)) or (isinstance(ctrl.content, str) or (isinstance(ctrl.content, Control) and ctrl.content.visible)), message='at minimum, icon or content (string or visible Control) must be provided'),)",
      "metadata": {}
     }
+   ],
+   "methods": [
+    {
+     "name": "focus",
+     "params": [],
+     "returns": null,
+     "doc": "Requests focus for this control.",
+     "simple": true,
+     "invoke": "focus",
+     "timeout": null,
+     "args": {}
+    }
    ]
   },
   {
@@ -21288,6 +21979,26 @@
      "metadata": {},
      "doc": "Called when the user pulls the indicator far enough, or :meth:`show` is\n    called.\n\n    The progress indicator spins until this handler returns, so make it an\n    `async` handler that awaits the refresh work."
     }
+   ],
+   "methods": [
+    {
+     "name": "show",
+     "params": [
+      {
+       "name": "at_top",
+       "type": "bool",
+       "default": "True"
+      }
+     ],
+     "returns": null,
+     "doc": "Shows the indicator and calls :attr:`on_refresh`, as a pull would.\n\nArgs:\n    at_top: Whether to show the indicator at the top of the\n        :attr:`content`, rather than at its bottom.",
+     "simple": true,
+     "invoke": "show",
+     "timeout": null,
+     "args": {
+      "at_top": "at_top"
+     }
+    }
    ]
   },
   {
@@ -21702,6 +22413,46 @@
      "default": "None",
      "metadata": {},
      "doc": "Fired when the search bar loses focus."
+    }
+   ],
+   "methods": [
+    {
+     "name": "focus",
+     "params": [],
+     "returns": null,
+     "doc": "Requests focus for this control.",
+     "simple": true,
+     "invoke": "focus",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "open_view",
+     "params": [],
+     "returns": null,
+     "doc": "Opens the search view.",
+     "simple": true,
+     "invoke": "open_view",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "close_view",
+     "params": [
+      {
+       "name": "text",
+       "type": "Optional[str]",
+       "default": "None"
+      }
+     ],
+     "returns": null,
+     "doc": "Closes an opened search view.\n\nArgs:\n    text: The text to set in the search bar when closing the view. If not\n        provided, the current :attr:`value` of the search bar will be used.",
+     "simple": true,
+     "invoke": "close_view",
+     "timeout": null,
+     "args": {
+      "text": "text if text is not None else self.value"
+     }
     }
    ]
   },
@@ -22786,6 +23537,31 @@
      "metadata": {},
      "doc": "Called when :attr:`selected_index` changes.\n\n    The :attr:`flet.Event.data` property of the event handler argument\n    contains the index of the selected tab."
     }
+   ],
+   "methods": [
+    {
+     "name": "move_to",
+     "params": [
+      {
+       "name": "index",
+       "type": "int",
+       "default": null
+      },
+      {
+       "name": "animation_curve",
+       "type": "AnimationCurve",
+       "default": "AnimationCurve.EASE_IN"
+      },
+      {
+       "name": "animation_duration",
+       "type": "Optional[DurationValue]",
+       "default": "None"
+      }
+     ],
+     "returns": null,
+     "doc": "Selects the tab at the given `index`.\n\nAdditionally, it triggers :attr:`on_change` event and updates\n:attr:`selected_index`.\n\nNote:\n    If `index` is negative, it is interpreted as a Python-style negative index\n    (e.g., -1 refers to the last tab). If the resolved index is already the\n    currently selected tab, the method returns immediately and does nothing.\n\nArgs:\n    index: The index of the tab to select. Must be between in range\n        `[-length, length - 1]`.\n    animation_curve: The curve to apply to the animation.\n    animation_duration: The duration of the animation. If `None` (the default),\n        :attr:`flet.Tabs.animation_duration` will be used.\n\nRaises:\n    IndexError: If the `index` is outside the range `[-length, length - 1]`.",
+     "simple": false
+    }
    ]
   },
   {
@@ -23131,6 +23907,18 @@
      "default": "None",
      "metadata": {},
      "doc": "Called when this button has lost focus."
+    }
+   ],
+   "methods": [
+    {
+     "name": "focus",
+     "params": [],
+     "returns": null,
+     "doc": "Requests focus for this control.",
+     "simple": true,
+     "invoke": "focus",
+     "timeout": null,
+     "args": {}
     }
    ]
   },
@@ -24991,6 +25779,54 @@
      "metadata": {},
      "default_factory": "ServiceRegistry"
     }
+   ],
+   "methods": [
+    {
+     "name": "push_route",
+     "params": [
+      {
+       "name": "route",
+       "type": "str",
+       "default": null
+      }
+     ],
+     "returns": "None",
+     "doc": "Pushes a new navigation route to the browser history stack.\nChanging route will fire [`page.on_route_change`](#on_route_change) event\nhandler.\n\nExample:\n    ```python\n    import asyncio\n\n    import flet as ft\n\n\n    def main(page: ft.Page):\n        page.title = \"Routes Example\"\n\n        def route_change():\n            page.views.clear()\n            page.views.append(\n                ft.View(\n                    route=\"/\",\n                    controls=[\n                        ft.AppBar(\n                            title=ft.Text(\"Flet app\"),\n                        ),\n                        ft.Button(\n                            \"Visit Store\",\n                            on_click=lambda: asyncio.create_task(\n                                page.push_route(\"/store\")\n                            ),\n                        ),\n                    ],\n                )\n            )\n            if page.route == \"/store\":\n                page.views.append(\n                    ft.View(\n                        route=\"/store\",\n                        controls=[\n                            ft.AppBar(\n                                title=ft.Text(\"Store\"),\n                            ),\n                            ft.Button(\n                                \"Go Home\",\n                                on_click=lambda: asyncio.create_task(\n                                    page.push_route(\"/\")\n                                ),\n                            ),\n                        ],\n                    )\n                )\n            page.update()\n\n        async def view_pop(e):\n            if e.view is not None:\n                print(\"View pop:\", e.view)\n                page.views.remove(e.view)\n                top_view = page.views[-1]\n                await page.push_route(top_view.route)\n\n        page.on_route_change = route_change\n        page.on_view_pop = view_pop\n\n        route_change()\n\n\n    if __name__ == \"__main__\":\n        ft.run(main)\n    ```\n\nArgs:\n    route: New navigation route.\n    **kwargs: Additional query string parameters to be added to the route.",
+     "simple": false
+    },
+    {
+     "name": "get_device_info",
+     "params": [],
+     "returns": "Optional[DeviceInfo]",
+     "doc": "Returns device information.\n\nReturns:\n    The device information object for the current platform,\n        or `None` if unavailable.",
+     "simple": false
+    },
+    {
+     "name": "get_package_info",
+     "params": [],
+     "returns": "PackageInfo",
+     "doc": "Returns package metadata of the running application, such as its name,\nversion and build number.\n\nFor an app packaged with `flet build`, this is the metadata of the\nbuilt app, including the version and build number it was built with.\nOtherwise, it describes the Flet client that renders the app.\nSee :class:`~flet.PackageInfo` for details.\n\nReturns:\n    The application's package information.",
+     "simple": false,
+     "returns_result": false
+    },
+    {
+     "name": "set_allowed_device_orientations",
+     "params": [
+      {
+       "name": "orientations",
+       "type": "list[DeviceOrientation]",
+       "default": null
+      }
+     ],
+     "returns": "None",
+     "doc": "Constrains the allowed orientations for the app when running on a mobile         device.\n\nArgs:\n    orientations: A list of allowed device orientations.\n        Set to an empty list to use the system default behavior.\n\nRaises:\n    FletUnsupportedPlatformException: If the method is called\n        on a non-mobile platform.\n\nLimitations:\n    - **Android**: On Android 16 (API 36) or later, this method won't be able to\n        change the orientation of **devices with a display width ≥ 600 dp**\n        cannot change orientation. For more details see Android 16 docs\n        [here](https://developer.android.com/about/versions/16/behavior-changes-16#ignore-orientation).\n        Also, Android limits the [orientations](https://developer.android.com/reference/android/R.attr#screenOrientation) to the following combinations:\n            - `[]` → `unspecified`\n            - `[PORTRAIT_UP]` → `portrait`\n            - `[LANDSCAPE_LEFT]` → `landscape`\n            - `[PORTRAIT_DOWN]` → `reversePortrait`\n            - `[PORTRAIT_UP, PORTRAIT_DOWN]` → `userPortrait`\n            - `[LANDSCAPE_RIGHT]` → `reverseLandscape`\n            - `[LANDSCAPE_LEFT, LANDSCAPE_RIGHT]` → `userLandscape`\n            - `[PORTRAIT_UP, LANDSCAPE_LEFT, LANDSCAPE_RIGHT]` → `user`\n            - `[PORTRAIT_UP, PORTRAIT_DOWN, LANDSCAPE_LEFT, LANDSCAPE_RIGHT]` →\n            `fullUser`\n\n    - **iOS**: This setting will only be respected on iPad if multitasking is\n    disabled.\n        You can decide to opt out of multitasking on iPad, then this will work\n        but your app will not support Slide Over and Split View multitasking\n        anymore. Should you decide to opt out of multitasking you can do this by\n        setting \"Requires full screen\" to true in the Xcode Deployment Info.",
+     "simple": true,
+     "invoke": "set_allowed_device_orientations",
+     "timeout": null,
+     "args": {
+      "orientations": "orientations"
+     }
+    }
    ]
   },
   {
@@ -25573,6 +26409,50 @@
      "metadata": {},
      "doc": "Called when scroll position is changed by a user."
     }
+   ],
+   "methods": [
+    {
+     "name": "scroll_to",
+     "params": [
+      {
+       "name": "offset",
+       "type": "Optional[float]",
+       "default": "None"
+      },
+      {
+       "name": "delta",
+       "type": "Optional[float]",
+       "default": "None"
+      },
+      {
+       "name": "scroll_key",
+       "type": "Union[ScrollKey, str, int, float, bool, None]",
+       "default": "None"
+      },
+      {
+       "name": "duration",
+       "type": "DurationValue",
+       "default": "0"
+      },
+      {
+       "name": "curve",
+       "type": "AnimationCurve",
+       "default": "AnimationCurve.EASE"
+      }
+     ],
+     "returns": null,
+     "doc": "Moves the scroll position.\n\nArgs:\n    offset: Absolute scroll target in pixels. A negative value is interpreted\n        relative to the end (e.g. `-1` to jump to the very end).\n    delta: Relative scroll change in pixels. Positive values scroll forward,\n        negative values scroll backward.\n    scroll_key: Key of the target control to scroll to.\n    duration: The scroll animation duration.\n    curve: The scroll animation curve.\n\nNotes:\n    - Exactly one of `offset`, `delta` or `scroll_key` should be provided.\n    - :attr:`auto_scroll` must be `False`.\n    - This method is ineffective for controls (e.g.\n        :class:`~flet.ListView`, :class:`~flet.GridView`) that build items                 dynamically.\n\nExamples:\n    ```python\n    await products.scroll_to(offset=100, duration=1000)\n    await products.scroll_to(offset=-1, duration=1000)  # to the end\n    await products.scroll_to(delta=50)  # forward 50px\n    await products.scroll_to(scroll_key=\"item_20\", duration=500)\n    ```",
+     "simple": true,
+     "invoke": "scroll_to",
+     "timeout": null,
+     "args": {
+      "offset": "offset",
+      "delta": "delta",
+      "scroll_key": "scroll_key",
+      "duration": "duration",
+      "curve": "curve"
+     }
+    }
    ]
   },
   {
@@ -25804,6 +26684,41 @@
      "metadata": {},
      "doc": "Called when battery state changes (charging, discharging, full, unknown)."
     }
+   ],
+   "methods": [
+    {
+     "name": "get_battery_level",
+     "params": [],
+     "returns": "Optional[int]",
+     "doc": "Gets the current battery level as a percentage, in the range `0` to `100`.\n\nReturns:\n    The battery level, or `None` when it is unavailable on the current\n    environment.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_battery_level",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "get_battery_state",
+     "params": [],
+     "returns": "BatteryState",
+     "doc": "Returns current battery state.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_battery_state",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "is_in_battery_save_mode",
+     "params": [],
+     "returns": "bool",
+     "doc": "Returns `True` if the device is currently in battery save mode.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "is_in_battery_save_mode",
+     "timeout": null,
+     "args": {}
+    }
    ]
   },
   {
@@ -25815,7 +26730,23 @@
    "doc": "Controls the browser's context menu on the web platform.\n\nThe context menu is the menu that appears on right clicking or selecting\ntext in the browser, for example.\n\nOn web, by default, the browser's context menu is enabled and\nFlet's context menus are hidden.\n\nOn all non-web platforms, this does nothing.",
    "kind": "control",
    "dart_name": "BrowserContextMenu",
-   "fields": []
+   "fields": [],
+   "methods": [
+    {
+     "name": "enable",
+     "params": [],
+     "returns": null,
+     "doc": "Enable the browser's context menu.\n\nBy default, when the app starts, the browser's context menu is already enabled.",
+     "simple": false
+    },
+    {
+     "name": "disable",
+     "params": [],
+     "returns": null,
+     "doc": "Disable the browser's context menu.\n\nBy default, when the app starts, the browser's context menu is\nalready enabled.",
+     "simple": false
+    }
+   ]
   },
   {
    "name": "Clipboard",
@@ -25826,7 +26757,97 @@
    "doc": "Provides access to the system clipboard.",
    "kind": "control",
    "dart_name": "Clipboard",
-   "fields": []
+   "fields": [],
+   "methods": [
+    {
+     "name": "set",
+     "params": [
+      {
+       "name": "value",
+       "type": "str",
+       "default": null
+      }
+     ],
+     "returns": "None",
+     "doc": "Stores the given data on the clipboard.\n\nArgs:\n    value: The string data to be stored on the clipboard.",
+     "simple": true,
+     "invoke": "set",
+     "timeout": null,
+     "args": {
+      "data": "value"
+     }
+    },
+    {
+     "name": "get",
+     "params": [],
+     "returns": "Optional[str]",
+     "doc": "Retrieves data from the clipboard.\n\nReturns:\n    The string data retrieved from the clipboard, or `None`\n        if the clipboard is empty or does not contain string data.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "set_image",
+     "params": [
+      {
+       "name": "value",
+       "type": "bytes",
+       "default": null
+      }
+     ],
+     "returns": "None",
+     "doc": "Stores image bytes on the clipboard.\n\nArgs:\n    value: The image data (in bytes) to be stored on the clipboard.\n\nRaises:\n    FletUnsupportedPlatformException: If called on platforms other than the\n        following: Android, iOS, Web.",
+     "simple": true,
+     "invoke": "set_image",
+     "timeout": null,
+     "args": {
+      "data": "value"
+     }
+    },
+    {
+     "name": "get_image",
+     "params": [],
+     "returns": "Optional[bytes]",
+     "doc": "Retrieves image data from the clipboard.\n\nReturns:\n    The image data retrieved from the clipboard as bytes, or `None`\n        if the clipboard is empty or does not contain image data.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_image",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "set_files",
+     "params": [
+      {
+       "name": "files",
+       "type": "list[str]",
+       "default": null
+      }
+     ],
+     "returns": "bool",
+     "doc": "Stores file references on the clipboard.\n\nArgs:\n    files: A list of file paths.\n\nReturns:\n    `True` if the operation succeeded, otherwise `False`.\n\nRaises:\n    FletUnsupportedPlatformException: If called on platforms other than the\n        following: macOS, Windows, Linux.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "set_files",
+     "timeout": null,
+     "args": {
+      "files": "files"
+     }
+    },
+    {
+     "name": "get_files",
+     "params": [],
+     "returns": "list[str]",
+     "doc": "Retrieves file references from the clipboard.\n\nReturns:\n    A list of file references available in the clipboard.\n        On Android these are typically content URIs.\n\nRaises:\n    FletUnsupportedPlatformException: If called on platforms other than the\n        following: Android, macOS, Windows, Linux.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_files",
+     "timeout": null,
+     "args": {}
+    }
+   ]
   },
   {
    "name": "CopyToClipboard",
@@ -25926,6 +26947,19 @@
      "default": "None",
      "metadata": {},
      "doc": "Called when connectivity changes."
+    }
+   ],
+   "methods": [
+    {
+     "name": "get_connectivity",
+     "params": [],
+     "returns": "list[ConnectivityType]",
+     "doc": "Returns the current connectivity type(s).",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_connectivity",
+     "timeout": null,
+     "args": {}
     }
    ]
   },
@@ -26125,6 +27159,161 @@
      "metadata": {},
      "doc": "Called when a file is uploaded via :meth:`upload` method.\n\n    This callback is invoked at least twice for each uploaded file: once with `0.0`\n    :attr:`flet.FilePickerUploadEvent.progress` before the upload starts, and once with\n    `1.0` :attr:`flet.FilePickerUploadEvent.progress` when the upload completes.\n\n    For files larger than 1 MB, additional progress events are emitted\n    at every 10% increment (for example, `0.1`, `0.2`, ...)."
     }
+   ],
+   "methods": [
+    {
+     "name": "upload",
+     "params": [
+      {
+       "name": "files",
+       "type": "list[FilePickerUploadFile]",
+       "default": null
+      }
+     ],
+     "returns": null,
+     "doc": "Uploads picked files to specified upload URLs.\n\nBefore calling this method, :meth:`pick_files` first has to be\ncalled to ensure the internal file picker selection is not empty.\n\nOnce called, Flet asynchronously starts uploading selected files\none-by-one and reports the progress via :attr:`on_upload` event.\n\nArgs:\n    files: A list of :class:`~flet.FilePickerUploadFile`, where\n        each item specifies which file to upload, and where\n        (with `PUT` or `POST`).",
+     "simple": true,
+     "invoke": "upload",
+     "timeout": null,
+     "args": {
+      "files": "files"
+     }
+    },
+    {
+     "name": "get_directory_path",
+     "params": [
+      {
+       "name": "dialog_title",
+       "type": "Optional[str]",
+       "default": "None"
+      },
+      {
+       "name": "initial_directory",
+       "type": "Optional[str]",
+       "default": "None"
+      }
+     ],
+     "returns": "Optional[str]",
+     "doc": "Selects a directory and returns its absolute path.\n\nArgs:\n    dialog_title: The title of the dialog window. Defaults to [`FilePicker`].\n    initial_directory: The initial directory where the dialog should open.\n\nReturns:\n    The selected directory path or `None` if the dialog was cancelled.\n\nRaises:\n    FletUnsupportedPlatformException: If called in web mode.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_directory_path",
+     "timeout": null,
+     "args": {
+      "dialog_title": "dialog_title",
+      "initial_directory": "initial_directory"
+     }
+    },
+    {
+     "name": "save_file",
+     "params": [
+      {
+       "name": "dialog_title",
+       "type": "Optional[str]",
+       "default": "None"
+      },
+      {
+       "name": "file_name",
+       "type": "Optional[str]",
+       "default": "None"
+      },
+      {
+       "name": "initial_directory",
+       "type": "Optional[str]",
+       "default": "None"
+      },
+      {
+       "name": "file_type",
+       "type": "FilePickerFileType",
+       "default": "FilePickerFileType.ANY"
+      },
+      {
+       "name": "allowed_extensions",
+       "type": "Optional[list[str]]",
+       "default": "None"
+      },
+      {
+       "name": "src_bytes",
+       "type": "Optional[bytes]",
+       "default": "None"
+      }
+     ],
+     "returns": "Optional[str]",
+     "doc": "Opens a save file dialog which lets the user select a file path and a file         name to save a file.\n\nNote:\n    - On desktop, this method opens a dialog for the user to select a\n        location and file name. If `src_bytes` is provided, those bytes\n        are written to the selected file; otherwise the file is created\n        empty, for the app to write to the returned path.\n\nArgs:\n    dialog_title: The title of the dialog window.\n    file_name: The default file name.\n    initial_directory: The initial directory where the dialog should open.\n    file_type: The file types allowed to be selected.\n    src_bytes: The contents of a file. Must be provided in web,\n        iOS or Android modes.\n    allowed_extensions: The allowed file extensions. Has effect only if\n        `file_type` is :attr:`flet.FilePickerFileType.CUSTOM`.\n\nRaises:\n    ValueError: If `src_bytes` is not provided, when called in web mode,\n        on iOS or Android.\n    ValueError: If `file_name` is not provided in web mode.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "save_file",
+     "timeout": null,
+     "args": {
+      "dialog_title": "dialog_title",
+      "file_name": "file_name",
+      "initial_directory": "initial_directory",
+      "file_type": "file_type",
+      "allowed_extensions": "allowed_extensions",
+      "src_bytes": "src_bytes"
+     }
+    },
+    {
+     "name": "pick_files",
+     "params": [
+      {
+       "name": "dialog_title",
+       "type": "Optional[str]",
+       "default": "None"
+      },
+      {
+       "name": "initial_directory",
+       "type": "Optional[str]",
+       "default": "None"
+      },
+      {
+       "name": "file_type",
+       "type": "FilePickerFileType",
+       "default": "FilePickerFileType.ANY"
+      },
+      {
+       "name": "allowed_extensions",
+       "type": "Optional[list[str]]",
+       "default": "None"
+      },
+      {
+       "name": "allow_multiple",
+       "type": "bool",
+       "default": "False"
+      },
+      {
+       "name": "with_data",
+       "type": "bool",
+       "default": "False"
+      },
+      {
+       "name": "compression_quality",
+       "type": "int",
+       "default": "0"
+      },
+      {
+       "name": "cancel_upload_on_window_blur",
+       "type": "bool",
+       "default": "True"
+      }
+     ],
+     "returns": "list[FilePickerFile]",
+     "doc": "Opens a pick file dialog.\n\nTip:\n    To upload the picked files, pass them to :meth:`upload` method,\n    along with their upload URLs.\n\nArgs:\n    dialog_title: The title of the dialog window.\n    initial_directory: The initial directory where the dialog should open.\n    file_type: The file types allowed to be selected.\n    allow_multiple: Allow the selection of multiple files at once.\n    with_data: Read selected file contents into\n        :attr:`~flet.FilePickerFile.bytes`.\n    compression_quality: Image compression quality from `0` to `100`.\n        `0` disables compression.\n    cancel_upload_on_window_blur: Web-only. Whether to treat browser\n        window blur as a cancelled selection. Set to `False` to avoid\n        losing valid selections on slow networks or slow machines.\n    allowed_extensions: The allowed file extensions. Has effect only if\n        `file_type` is :attr:`flet.FilePickerFileType.CUSTOM`.\n\nReturns:\n    A list of selected files.\n\nRaises:\n    ValueError: If `compression_quality` is not between\n        `0` and `100` inclusive.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "pick_files",
+     "timeout": null,
+     "args": {
+      "dialog_title": "dialog_title",
+      "initial_directory": "initial_directory",
+      "file_type": "file_type",
+      "allowed_extensions": "allowed_extensions",
+      "allow_multiple": "allow_multiple",
+      "with_data": "with_data",
+      "compression_quality": "compression_quality",
+      "cancel_upload_on_window_blur": "cancel_upload_on_window_blur"
+     }
+    }
    ]
   },
   {
@@ -26296,7 +27485,59 @@
    "doc": "Allows access to the haptic feedback interface on the device.",
    "kind": "control",
    "dart_name": "HapticFeedback",
-   "fields": []
+   "fields": [],
+   "methods": [
+    {
+     "name": "heavy_impact",
+     "params": [],
+     "returns": null,
+     "doc": "Provides a haptic feedback corresponding a collision impact with a heavy mass.",
+     "simple": true,
+     "invoke": "heavy_impact",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "light_impact",
+     "params": [],
+     "returns": null,
+     "doc": "Provides a haptic feedback corresponding a collision impact with a light mass.",
+     "simple": true,
+     "invoke": "light_impact",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "medium_impact",
+     "params": [],
+     "returns": null,
+     "doc": "Provides a haptic feedback corresponding a collision impact with a medium         mass.",
+     "simple": true,
+     "invoke": "medium_impact",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "vibrate",
+     "params": [],
+     "returns": null,
+     "doc": "Provides vibration haptic feedback to the user for a short duration.",
+     "simple": true,
+     "invoke": "vibrate",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "selection_click",
+     "params": [],
+     "returns": null,
+     "doc": "Provides haptic feedback for a selection changing through discrete values.\n\nOn supported platforms, this is typically used for controls such as pickers,\nsliders, or other inputs where the selected value changes one step at a time.",
+     "simple": true,
+     "invoke": "selection_click",
+     "timeout": null,
+     "args": {}
+    }
+   ]
   },
   {
    "name": "MagnetometerReadingEvent",
@@ -26426,6 +27667,145 @@
      "metadata": {},
      "doc": "Called when the **application** screen brightness changes."
     }
+   ],
+   "methods": [
+    {
+     "name": "get_system_screen_brightness",
+     "params": [],
+     "returns": "float",
+     "doc": "Returns the current system screen brightness, in range `0.0..1.0`.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_system_screen_brightness",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "can_change_system_screen_brightness",
+     "params": [],
+     "returns": "bool",
+     "doc": "Returns whether the app is allowed to change the system screen brightness.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "can_change_system_screen_brightness",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "set_system_screen_brightness",
+     "params": [
+      {
+       "name": "brightness",
+       "type": "Number",
+       "default": null
+      }
+     ],
+     "returns": null,
+     "doc": "Sets the system screen brightness.",
+     "simple": true,
+     "invoke": "set_system_screen_brightness",
+     "timeout": null,
+     "args": {
+      "value": "brightness"
+     }
+    },
+    {
+     "name": "get_application_screen_brightness",
+     "params": [],
+     "returns": "float",
+     "doc": "Returns the current application screen brightness, in range `0.0..1.0`.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_application_screen_brightness",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "set_application_screen_brightness",
+     "params": [
+      {
+       "name": "brightness",
+       "type": "Number",
+       "default": null
+      }
+     ],
+     "returns": null,
+     "doc": "Sets the application screen brightness.",
+     "simple": true,
+     "invoke": "set_application_screen_brightness",
+     "timeout": null,
+     "args": {
+      "value": "brightness"
+     }
+    },
+    {
+     "name": "reset_application_screen_brightness",
+     "params": [],
+     "returns": null,
+     "doc": "Resets the application screen brightness back to the system value.",
+     "simple": true,
+     "invoke": "reset_application_screen_brightness",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "is_animate",
+     "params": [],
+     "returns": "bool",
+     "doc": "Returns `True` if brightness changes are animated (platform dependent).",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "is_animate",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "set_animate",
+     "params": [
+      {
+       "name": "animate",
+       "type": "bool",
+       "default": null
+      }
+     ],
+     "returns": null,
+     "doc": "Enables or disables animation for brightness changes.",
+     "simple": true,
+     "invoke": "set_animate",
+     "timeout": null,
+     "args": {
+      "value": "animate"
+     }
+    },
+    {
+     "name": "is_auto_reset",
+     "params": [],
+     "returns": "bool",
+     "doc": "Returns `True` if brightness resets automatically on lifecycle changes.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "is_auto_reset",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "set_auto_reset",
+     "params": [
+      {
+       "name": "auto_reset",
+       "type": "bool",
+       "default": null
+      }
+     ],
+     "returns": null,
+     "doc": "Enables or disables automatic reset to system brightness on lifecycle changes.",
+     "simple": true,
+     "invoke": "set_auto_reset",
+     "timeout": null,
+     "args": {
+      "value": "auto_reset"
+     }
+    }
    ]
   },
   {
@@ -26523,7 +27903,68 @@
    "doc": "Allows access to the platform's accessibility services.",
    "kind": "control",
    "dart_name": "SemanticsService",
-   "fields": []
+   "fields": [],
+   "methods": [
+    {
+     "name": "announce_tooltip",
+     "params": [
+      {
+       "name": "message",
+       "type": "str",
+       "default": null
+      }
+     ],
+     "returns": null,
+     "doc": "Sends a semantic announcement of a tooltip.\n\nNote:\n    Only supported on Android.",
+     "simple": true,
+     "invoke": "announce_tooltip",
+     "timeout": null,
+     "args": {
+      "message": "message"
+     }
+    },
+    {
+     "name": "announce_message",
+     "params": [
+      {
+       "name": "message",
+       "type": "str",
+       "default": null
+      },
+      {
+       "name": "rtl",
+       "type": "bool",
+       "default": "False"
+      },
+      {
+       "name": "assertiveness",
+       "type": "Assertiveness",
+       "default": "Assertiveness.POLITE"
+      }
+     ],
+     "returns": null,
+     "doc": "Sends a semantic announcement with the given message.\n\nArgs:\n    message: The message to be announced.\n    rtl: Indicates if the message text direction is right-to-left.\n    assertiveness: The assertiveness level of the announcement.\n        Only supported on web.\n\nNotes:\n    This method should be used for announcements that are not automatically\n    handled by the system as a result of a UI state change.",
+     "simple": true,
+     "invoke": "announce_message",
+     "timeout": null,
+     "args": {
+      "message": "message",
+      "rtl": "rtl",
+      "assertiveness": "assertiveness"
+     }
+    },
+    {
+     "name": "get_accessibility_features",
+     "params": [],
+     "returns": "AccessibilityFeatures",
+     "doc": "Returns the current platform accessibility feature flags.\n\nReturns:\n    A snapshot of the platform's accessibility\n        preferences at the time of invocation.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_accessibility_features",
+     "timeout": null,
+     "args": {}
+    }
+   ]
   },
   {
    "name": "SensorErrorEvent",
@@ -26806,7 +28247,142 @@
    "doc": "Shares text, links, or files using the platform share sheet.",
    "kind": "control",
    "dart_name": "Share",
-   "fields": []
+   "fields": [],
+   "methods": [
+    {
+     "name": "share_text",
+     "params": [
+      {
+       "name": "text",
+       "type": "str",
+       "default": null
+      },
+      {
+       "name": "title",
+       "type": "Optional[str]",
+       "default": "None"
+      },
+      {
+       "name": "subject",
+       "type": "Optional[str]",
+       "default": "None"
+      },
+      {
+       "name": "preview_thumbnail",
+       "type": "Optional[ShareFile]",
+       "default": "None"
+      },
+      {
+       "name": "share_position_origin",
+       "type": "Optional[Offset]",
+       "default": "None"
+      },
+      {
+       "name": "download_fallback_enabled",
+       "type": "bool",
+       "default": "True"
+      },
+      {
+       "name": "mail_to_fallback_enabled",
+       "type": "bool",
+       "default": "True"
+      },
+      {
+       "name": "excluded_cupertino_activities",
+       "type": "Optional[Iterable[ShareCupertinoActivityType]]",
+       "default": "None"
+      }
+     ],
+     "returns": "ShareResult",
+     "doc": "Share plain text with optional subject, title, and thumbnail.\n\nArgs:\n    text: The text to share.\n    title: Optional title for the share sheet.\n    subject: Optional subject for the shared text.\n    preview_thumbnail: Optional thumbnail file to show in the share sheet.\n    share_position_origin: Optional position origin for the share sheet.\n    download_fallback_enabled: Whether to enable download fallback.\n    mail_to_fallback_enabled: Whether to enable mailto fallback.\n    excluded_cupertino_activities: Optional list of iOS/macOS activities\n        to exclude.",
+     "simple": false,
+     "returns_result": true,
+     "invoke": "share_text",
+     "timeout": null
+    },
+    {
+     "name": "share_uri",
+     "params": [
+      {
+       "name": "uri",
+       "type": "str",
+       "default": null
+      },
+      {
+       "name": "share_position_origin",
+       "type": "Optional[Offset]",
+       "default": "None"
+      },
+      {
+       "name": "excluded_cupertino_activities",
+       "type": "Optional[Iterable[ShareCupertinoActivityType]]",
+       "default": "None"
+      }
+     ],
+     "returns": "ShareResult",
+     "doc": "Share a link/URI.\n\nArgs:\n    uri: The URI to share.\n    share_position_origin: Optional position origin for the share sheet.\n    excluded_cupertino_activities: Optional list of iOS/macOS activities\n        to exclude.",
+     "simple": false,
+     "returns_result": true,
+     "invoke": "share_uri",
+     "timeout": null
+    },
+    {
+     "name": "share_files",
+     "params": [
+      {
+       "name": "files",
+       "type": "list[ShareFile]",
+       "default": null
+      },
+      {
+       "name": "title",
+       "type": "Optional[str]",
+       "default": "None"
+      },
+      {
+       "name": "text",
+       "type": "Optional[str]",
+       "default": "None"
+      },
+      {
+       "name": "subject",
+       "type": "Optional[str]",
+       "default": "None"
+      },
+      {
+       "name": "preview_thumbnail",
+       "type": "Optional[ShareFile]",
+       "default": "None"
+      },
+      {
+       "name": "share_position_origin",
+       "type": "Optional[Offset]",
+       "default": "None"
+      },
+      {
+       "name": "download_fallback_enabled",
+       "type": "bool",
+       "default": "True"
+      },
+      {
+       "name": "mail_to_fallback_enabled",
+       "type": "bool",
+       "default": "True"
+      },
+      {
+       "name": "excluded_cupertino_activities",
+       "type": "Optional[Iterable[ShareCupertinoActivityType]]",
+       "default": "None"
+      }
+     ],
+     "returns": "ShareResult",
+     "doc": "Share one or more files with optional text/metadata.\n\nArgs:\n    files: List of ShareFile instances to share.\n    title: Optional title for the share sheet.\n    text: Optional text to accompany the files.\n    subject: Optional subject for the shared files.\n    preview_thumbnail: Optional thumbnail file to show in the share sheet.\n    share_position_origin: Optional position origin for the share sheet.\n    download_fallback_enabled: Whether to enable download fallback.\n    mail_to_fallback_enabled: Whether to enable mailto fallback.\n    excluded_cupertino_activities: Optional list of iOS/macOS activities\n        to exclude.",
+     "simple": false,
+     "returns_result": true,
+     "invoke": "share_files",
+     "timeout": null
+    }
+   ]
   },
   {
    "name": "ShareText",
@@ -26849,7 +28425,121 @@
    "doc": "Provides access to persistent key-value storage.",
    "kind": "control",
    "dart_name": "SharedPreferences",
-   "fields": []
+   "fields": [],
+   "methods": [
+    {
+     "name": "set",
+     "params": [
+      {
+       "name": "key",
+       "type": "str",
+       "default": null
+      },
+      {
+       "name": "value",
+       "type": "SharedPreferencesValueType",
+       "default": null
+      }
+     ],
+     "returns": "bool",
+     "doc": "Sets a value for the given key.\n\nNote:\n    Due to limitations on Android, it is not possible to set values that start\n    with any of the following: `VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu`,\n    `VGhpcyBpcyB0aGUgcHJlZml4IGZvciBCaWdJbnRlZ2Vy`, and\n    `VGhpcyBpcyB0aGUgcHJlZml4IGZvciBEb3VibGUu`.\n\nArgs:\n    key: The key to store the value under.\n    value: The value to store.\n\nReturns:\n    `True` if the value was set successfully, `False` otherwise.\n\nRaises:\n    ValueError: If `value` is of an unsupported type\n        (`str`, `int`, `float`, `bool`, and `list[str]`).",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "set",
+     "timeout": null,
+     "args": {
+      "key": "key",
+      "value": "value"
+     }
+    },
+    {
+     "name": "get",
+     "params": [
+      {
+       "name": "key",
+       "type": "str",
+       "default": null
+      }
+     ],
+     "returns": "Optional[SharedPreferencesValueType]",
+     "doc": "Gets the value for the given key.\n\nArgs:\n    key: The key to retrieve the value for.\n\nReturns:\n    The value for the given key, or `None` if the key doesn't exist.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get",
+     "timeout": null,
+     "args": {
+      "key": "key"
+     }
+    },
+    {
+     "name": "contains_key",
+     "params": [
+      {
+       "name": "key",
+       "type": "str",
+       "default": null
+      }
+     ],
+     "returns": "bool",
+     "doc": "Checks if the given key exists.\n\nArgs:\n    key: The key to check for existence.\n\nReturns:\n    `True` if the key exists, `False` otherwise.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "contains_key",
+     "timeout": null,
+     "args": {
+      "key": "key"
+     }
+    },
+    {
+     "name": "remove",
+     "params": [
+      {
+       "name": "key",
+       "type": "str",
+       "default": null
+      }
+     ],
+     "returns": "bool",
+     "doc": "Removes the value for the given key.\n\nArgs:\n    key: The key to remove.\n\nReturns:\n    `True` if the key was removed, `False` if the key didn't exist.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "remove",
+     "timeout": null,
+     "args": {
+      "key": "key"
+     }
+    },
+    {
+     "name": "get_keys",
+     "params": [
+      {
+       "name": "key_prefix",
+       "type": "str",
+       "default": null
+      }
+     ],
+     "returns": "list[str]",
+     "doc": "Gets all keys with the given prefix.\n\nArgs:\n    key_prefix: The prefix to filter keys by.\n\nReturns:\n    A list of keys that start with the given prefix.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_keys",
+     "timeout": null,
+     "args": {
+      "key_prefix": "key_prefix"
+     }
+    },
+    {
+     "name": "clear",
+     "params": [],
+     "returns": "bool",
+     "doc": "Clears all keys and values.\n\nReturns:\n    `True` if the preferences were cleared successfully, `False` otherwise.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "clear",
+     "timeout": null,
+     "args": {}
+    }
+   ]
   },
   {
    "name": "StoragePaths",
@@ -26860,7 +28550,119 @@
    "doc": "Provides access to commonly used storage paths on the device.\n\nNote:\n    Its methods are not supported in web mode.",
    "kind": "control",
    "dart_name": "StoragePaths",
-   "fields": []
+   "fields": [],
+   "methods": [
+    {
+     "name": "get_application_cache_directory",
+     "params": [],
+     "returns": "str",
+     "doc": "Returns the path to the application-specific cache directory.\n\nIf this directory does not exist, it is created automatically.\n\nTip:\n    In a running Flet app, this path is also exposed synchronously via\n    the `FLET_APP_STORAGE_CACHE` environment variable.\n\nReturns:\n    The path to a directory where the application may place cache files.\n\nRaises:\n    FletUnsupportedPlatformException: If called on the web platform.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_application_cache_directory",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "get_application_documents_directory",
+     "params": [],
+     "returns": "str",
+     "doc": "Returns the path to a directory for user-generated data.\n\nThis directory is intended for data that cannot be recreated by your\napplication.\n\nFor non-user-generated data, consider using:\n\n- :meth:`get_application_support_directory`\n- :meth:`get_application_cache_directory`\n- :meth:`get_external_storage_directory`\n\nRaises:\n    FletUnsupportedPlatformException: If called on the web platform.\n\nReturns:\n    The path to the application documents directory.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_application_documents_directory",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "get_application_support_directory",
+     "params": [],
+     "returns": "str",
+     "doc": "Returns the path to a directory for application support files.\n\nThis directory is created automatically if it does not exist.\nUse this for files not exposed to the user. Do not use for user data files.\n\nTip:\n    In a running Flet app, the `FLET_APP_STORAGE_DATA` environment\n    variable points to a `data` subdirectory of this path.\n\nRaises:\n    FletUnsupportedPlatformException: If called on the web platform.\n\nReturns:\n    The path to the application support directory.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_application_support_directory",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "get_downloads_directory",
+     "params": [],
+     "returns": "Optional[str]",
+     "doc": "Returns the path to the downloads directory.\n\nThe returned directory may not exist; clients should verify and create it\nif necessary.\n\nRaises:\n    FletUnsupportedPlatformException: If called on the web platform.\n\nReturns:\n    The path to the downloads directory, or None if unavailable.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_downloads_directory",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "get_external_cache_directories",
+     "params": [],
+     "returns": "Optional[list[str]]",
+     "doc": "Returns paths to external cache directories.\n\nThese directories are typically on external storage (e.g., SD cards).\nMultiple directories may be available on some devices.\n\nRaises:\n    FletUnsupportedPlatformException: If called on the web or\n        non-Android platforms.\n\nReturns:\n    A List of external cache directory paths, or `None` if unavailable.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_external_cache_directories",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "get_external_storage_directories",
+     "params": [],
+     "returns": "Optional[list[str]]",
+     "doc": "Returns paths to external storage directories.\n\nThese directories are typically on external storage (e.g., SD cards).\nMultiple directories may be available on some devices.\n\nRaises:\n    FletUnsupportedPlatformException: If called on the web or\n        non-Android platforms.\n\nReturns:\n    A List of external storage directory paths, or `None` if unavailable.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_external_storage_directories",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "get_library_directory",
+     "params": [],
+     "returns": "str",
+     "doc": "Returns the path to the library directory.\n\nThis directory is for persistent, backed-up files not visible to the user\n(e.g., sqlite.db).\n\nRaises:\n    FletUnsupportedPlatformException: If called on the web or\n        non-Apple platforms.\n\nReturns:\n    The path to the library directory.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_library_directory",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "get_external_storage_directory",
+     "params": [],
+     "returns": "Optional[str]",
+     "doc": "Returns the path to the top-level external storage directory.\n\nRaises:\n    FletUnsupportedPlatformException: If called on the web or\n        non-Android platforms.\n\nReturns:\n    The path to the external storage directory, or `None` if unavailable.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_external_storage_directory",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "get_temporary_directory",
+     "params": [],
+     "returns": "str",
+     "doc": "Returns the path to the temporary directory.\n\nThis directory is not backed up and is suitable for storing caches\nof downloaded files.\nFiles may be cleared at any time.\nThe caller is responsible for managing files within this directory.\n\nTip:\n    In a running Flet app, this path is also exposed synchronously via\n    the `FLET_APP_STORAGE_TEMP` environment variable.\n\nRaises:\n    FletUnsupportedPlatformException: If called on the web platform.\n\nReturns:\n    The path to the temporary directory.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_temporary_directory",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "get_console_log_filename",
+     "params": [],
+     "returns": "str",
+     "doc": "Returns the path to a `console.log` file for debugging.\n\nThis file is located in the\n:meth:`flet.StoragePaths.get_application_cache_directory`.\n\nTip:\n    In a running Flet app, this path is also exposed synchronously via\n    the `FLET_APP_CONSOLE` environment variable.\n\nRaises:\n    FletUnsupportedPlatformException: If called on the web platform.\n\nReturns:\n    The path to the console log file.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "get_console_log_filename",
+     "timeout": null,
+     "args": {}
+    }
+   ]
   },
   {
    "name": "LaunchMode",
@@ -26954,7 +28756,154 @@
    "doc": "Provides access to URL launching capabilities.",
    "kind": "control",
    "dart_name": "UrlLauncher",
-   "fields": []
+   "fields": [],
+   "methods": [
+    {
+     "name": "launch_url",
+     "params": [
+      {
+       "name": "url",
+       "type": "Union[str, Url]",
+       "default": null
+      },
+      {
+       "name": "mode",
+       "type": "LaunchMode",
+       "default": "LaunchMode.PLATFORM_DEFAULT"
+      },
+      {
+       "name": "web_view_configuration",
+       "type": "Optional[WebViewConfiguration]",
+       "default": "None"
+      },
+      {
+       "name": "browser_configuration",
+       "type": "Optional[BrowserConfiguration]",
+       "default": "None"
+      },
+      {
+       "name": "web_only_window_name",
+       "type": "Optional[str]",
+       "default": "None"
+      }
+     ],
+     "returns": null,
+     "doc": "Opens a web browser or in-app view to a given `url`.\n\nArgs:\n    url: The URL to open.\n    mode: Preferred launch mode for opening the URL.\n    web_view_configuration: Optional configuration for in-app web views.\n    browser_configuration: Optional configuration for in-app browser views.\n    web_only_window_name: Window name for web-only launches.",
+     "simple": true,
+     "invoke": "launch_url",
+     "timeout": null,
+     "args": {
+      "url": "url",
+      "mode": "mode",
+      "web_view_configuration": "web_view_configuration",
+      "browser_configuration": "browser_configuration",
+      "web_only_window_name": "web_only_window_name"
+     }
+    },
+    {
+     "name": "can_launch_url",
+     "params": [
+      {
+       "name": "url",
+       "type": "Union[str, Url]",
+       "default": null
+      }
+     ],
+     "returns": "bool",
+     "doc": "Checks whether the specified URL can be handled by some app installed on the         device.\n\nArgs:\n    url: The URL to check.\n\nReturns:\n    `True` if it is possible to verify that there is a handler available.\n        `False` if there is no handler available,\n        or the application does not have permission to check. For example:\n\n        - On Android 11+ and iOS, this returns `False` for URLs whose scheme\n            the app doesn't declare: on Android in\n            [`[tool.flet.android.queries]`](https://flet.dev/docs/publish/android#queries),\n            on iOS in `LSApplicationQueriesSchemes` of\n            [`[tool.flet.ios.info]`](https://flet.dev/docs/publish/ios#infoplist).\n        - On web, this will always return `False` except for a few specific\n            schemes that are always assumed to be supported (such as http(s)),\n            as web pages are never allowed to query installed applications.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "can_launch_url",
+     "timeout": null,
+     "args": {
+      "url": "url"
+     }
+    },
+    {
+     "name": "close_in_app_web_view",
+     "params": [],
+     "returns": null,
+     "doc": "Closes the in-app web view if it is currently open.",
+     "simple": true,
+     "invoke": "close_in_app_web_view",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "open_window",
+     "params": [
+      {
+       "name": "url",
+       "type": "Union[str, Url]",
+       "default": null
+      },
+      {
+       "name": "title",
+       "type": "Optional[str]",
+       "default": "None"
+      },
+      {
+       "name": "width",
+       "type": "Optional[float]",
+       "default": "None"
+      },
+      {
+       "name": "height",
+       "type": "Optional[float]",
+       "default": "None"
+      }
+     ],
+     "returns": null,
+     "doc": "Opens a popup browser window in web environments.\n\nArgs:\n    url: The URL to open in the popup window.\n    title: The popup window title.\n    width: Desired popup width in logical pixels.\n    height: Desired popup height in logical pixels.",
+     "simple": true,
+     "invoke": "open_window",
+     "timeout": null,
+     "args": {
+      "url": "url",
+      "title": "title",
+      "width": "width",
+      "height": "height"
+     }
+    },
+    {
+     "name": "supports_launch_mode",
+     "params": [
+      {
+       "name": "mode",
+       "type": "LaunchMode",
+       "default": null
+      }
+     ],
+     "returns": "bool",
+     "doc": "Checks whether the specified launch mode is supported.\n\nArgs:\n    mode: Launch mode to verify.\n\nReturns:\n    `True` if the launch mode is supported by the platform; otherwise `False`.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "supports_launch_mode",
+     "timeout": null,
+     "args": {
+      "mode": "mode"
+     }
+    },
+    {
+     "name": "supports_close_for_launch_mode",
+     "params": [
+      {
+       "name": "mode",
+       "type": "LaunchMode",
+       "default": null
+      }
+     ],
+     "returns": "bool",
+     "doc": "Checks whether `close_in_app_web_view` is supported for a launch mode.\n\nArgs:\n    mode: Launch mode to verify close support for.\n\nReturns:\n    `True` if closing an in-app web view is supported; otherwise `False`.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "supports_close_for_launch_mode",
+     "timeout": null,
+     "args": {
+      "mode": "mode"
+     }
+    }
+   ]
   },
   {
    "name": "OpenUrl",
@@ -27076,7 +29025,40 @@
    "doc": "Prevents the device from sleeping while enabled.",
    "kind": "control",
    "dart_name": "Wakelock",
-   "fields": []
+   "fields": [],
+   "methods": [
+    {
+     "name": "enable",
+     "params": [],
+     "returns": null,
+     "doc": "Keeps the device awake.",
+     "simple": true,
+     "invoke": "enable",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "disable",
+     "params": [],
+     "returns": null,
+     "doc": "Allows the device to sleep again.",
+     "simple": true,
+     "invoke": "disable",
+     "timeout": null,
+     "args": {}
+    },
+    {
+     "name": "is_enabled",
+     "params": [],
+     "returns": "bool",
+     "doc": "Returns `True` if the wakelock is currently enabled.",
+     "simple": true,
+     "returns_result": true,
+     "invoke": "is_enabled",
+     "timeout": null,
+     "args": {}
+    }
+   ]
   },
   {
    "name": "TemplateRoute",

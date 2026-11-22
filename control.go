@@ -25,6 +25,8 @@ func init() { idCounter.Store(2) }
 
 type controlBase struct {
 	id int64
+	// page is set while the control is on a page; methods need it.
+	page atomic.Pointer[Page]
 }
 
 func (b *controlBase) base() *controlBase {

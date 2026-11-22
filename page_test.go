@@ -249,8 +249,9 @@ func TestRandomListChanges(t *testing.T) {
 		assertInSync(t, p, fc)
 	}
 
-	// The index must hold exactly the controls in the tree (page, view, column, texts).
-	if want := 3 + len(col.Controls); len(p.index) != want {
+	// The index must hold exactly the controls in the tree (page, window,
+	// overlay, dialogs, services, view, column, texts).
+	if want := 7 + len(col.Controls); len(p.index) != want {
 		t.Errorf("index has %d entries, want %d", len(p.index), want)
 	}
 }

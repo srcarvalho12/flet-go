@@ -117,6 +117,112 @@ def parse_enum(cls):
     return members
 
 
+def invoke_call(node):
+    """Returns the self._invoke_method(...) call in an expression, or None."""
+    if isinstance(node, ast.Await):
+        node = node.value
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "_invoke_method"
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "self"
+    ):
+        return node
+    return None
+
+
+def parse_method(fn):
+    """Describes a public async method that wraps a single client method call.
+
+    Only the simple shape is recorded: the body (after the docstring) is one
+    `await self._invoke_method(...)` or `return await self._invoke_method(...)`.
+    Anything else is listed with "simple": false so the generator can report it.
+    """
+    body = fn.body
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and isinstance(body[0].value.value, str)
+    ):
+        body = body[1:]
+
+    args = fn.args
+    params = []
+    plain = args.args[1:]  # skip self
+    defaults = [None] * (len(plain) - len(args.defaults)) + list(args.defaults)
+    for a, d in zip(plain, defaults):
+        params.append({"name": a.arg, "type": unparse(a.annotation), "default": unparse(d)})
+    for a, d in zip(args.kwonlyargs, args.kw_defaults):
+        params.append({"name": a.arg, "type": unparse(a.annotation), "default": unparse(d)})
+
+    m = {
+        "name": fn.name,
+        "params": params,
+        "returns": unparse(fn.returns),
+        "doc": first_sentence_doc(ast.get_docstring(fn)),
+        "simple": False,
+    }
+
+    # Argument checks (`if ...: raise ...`) are left to the client.
+    while (
+        body
+        and isinstance(body[0], ast.If)
+        and not body[0].orelse
+        and all(isinstance(s, ast.Raise) for s in body[0].body)
+    ):
+        body = body[1:]
+
+    if args.vararg or args.kwarg:
+        return m
+    call = None
+    if len(body) == 1 and isinstance(body[0], ast.Expr):
+        call = invoke_call(body[0].value)
+    elif len(body) == 1 and isinstance(body[0], ast.Return):
+        value = body[0].value
+        # return T(await self._invoke_method(...)), e.g. float(...) or an enum
+        if isinstance(value, ast.Call) and len(value.args) == 1 and not value.keywords:
+            value = value.args[0]
+        call = invoke_call(value)
+        m["returns_result"] = call is not None
+    elif (
+        len(body) == 2
+        and isinstance(body[0], ast.Assign)
+        and isinstance(body[1], ast.Return)
+    ):
+        # result = await self._invoke_method(...); return <result converted>
+        # The return annotation describes the shape of the result.
+        call = invoke_call(body[0].value)
+        m["returns_result"] = call is not None
+    if call is None or not call.args:
+        return m
+
+    name = literal(call.args[0])
+    arguments = call.args[1] if len(call.args) > 1 else None
+    timeout = call.args[2] if len(call.args) > 2 else None
+    for kw in call.keywords:
+        if kw.arg == "arguments":
+            arguments = kw.value
+        elif kw.arg == "timeout":
+            timeout = kw.value
+    if not isinstance(name, str):
+        return m
+
+    m["invoke"] = name
+    m["timeout"] = unparse(timeout)
+    if arguments is None:
+        m["args"] = {}
+    elif isinstance(arguments, ast.Dict) and all(
+        isinstance(k, ast.Constant) for k in arguments.keys
+    ):
+        m["args"] = {k.value: unparse(v) for k, v in zip(arguments.keys, arguments.values)}
+    else:
+        return m
+    m["simple"] = True
+    return m
+
+
 def parse_class(cls, module):
     decos = {decorator_name(d): d for d in cls.decorator_list}
     bases = [base_name(b) for b in cls.bases]
@@ -151,6 +257,16 @@ def parse_class(cls, module):
             if f:
                 fields.append(f)
     entry["fields"] = fields
+
+    methods = []
+    for stmt in body:
+        if isinstance(stmt, ast.AsyncFunctionDef) and not stmt.name.startswith("_"):
+            if any(
+                invoke_call(n) for n in ast.walk(stmt) if isinstance(n, (ast.Call, ast.Await))
+            ):
+                methods.append(parse_method(stmt))
+    if methods:
+        entry["methods"] = methods
     return entry
 
 

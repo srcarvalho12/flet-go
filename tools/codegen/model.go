@@ -50,7 +50,7 @@ type model struct {
 // Names handled by hand-written code or not generated yet.
 var reserved = map[string]bool{
 	"Event": true, "Control": true, "BaseControl": true, "Page": true, "BasePage": true,
-	"View": true, "Window": true, "Service": true, "ServiceRegistry": true, "MultiView": true,
+	"View": true, "Service": true, "ServiceRegistry": true, "MultiView": true,
 	"IconData": true, "Colors": true, "CupertinoColors": true, "Duration": true,
 	"Ref": true, "KeyValue": true, "ValueKey": true, "ScrollKey": true,
 }
@@ -84,7 +84,6 @@ func newModel(s *Spec) *model {
 			if enumValueKind(c) != "" {
 				m.enums[name] = c
 			}
-		case m.isA(name, "Service"):
 		case m.isA(name, "BaseControl"):
 			if c.DartName != "" {
 				m.controls[name] = c
@@ -350,6 +349,8 @@ func (m *model) resolve(t *texpr, depth int) gtype {
 		return gtype{skip: "callable"}
 	case "str":
 		return gtype{kind: kScalar, goTyp: "string"}
+	case "bytes":
+		return gtype{kind: kSlice, goTyp: "[]byte", elem: "byte"}
 	case "bool":
 		return gtype{kind: kScalar, goTyp: "bool"}
 	case "int":

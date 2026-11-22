@@ -1,6 +1,8 @@
 package flet
 
 import (
+	"errors"
+	"fmt"
 	"reflect"
 	"slices"
 	"sync"
@@ -12,6 +14,22 @@ import (
 type Page struct {
 	// Title is the window title.
 	Title string
+	// Window is the native window (desktop only): size, position, methods
+	// such as Center and Close.
+	Window *Window
+	// Overlay holds controls drawn above the page content.
+	Overlay []Control
+	// Services holds non-visual controls such as Clipboard or FilePicker.
+	// A service must be on the page (followed by Update) before its methods
+	// are called.
+	Services []Control
+
+	// Reported by the client.
+	Width, Height      float64
+	Platform           PagePlatform
+	PlatformBrightness Brightness
+	Web                bool
+	Route              string
 
 	mu    sync.Mutex
 	send  func(protocol.Message)
@@ -25,6 +43,9 @@ type Page struct {
 	index map[int64]Control
 	// pruneNeeded is set when controls were removed during an update.
 	pruneNeeded bool
+
+	calls calls
+	queue queue
 }
 
 type snapshot struct {
@@ -35,14 +56,25 @@ type snapshot struct {
 
 func newPage(send func(protocol.Message)) *Page {
 	v := &view{}
-	root := &pageRoot{controlBase: controlBase{id: 1}, views: []Control{v}}
-	return &Page{
-		send:  send,
-		root:  root,
-		view:  v,
-		sent:  map[int64]*snapshot{},
-		index: map[int64]Control{},
+	w := &Window{}
+	w.id = 2
+	p := &Page{
+		Window: w,
+		send:   send,
+		view:   v,
+		sent:   map[int64]*snapshot{},
+		index:  map[int64]Control{},
 	}
+	p.root = &pageRoot{
+		controlBase: controlBase{id: 1},
+		page:        p,
+		views:       []Control{v},
+		window:      w,
+		overlay:     &overlay{},
+		dialogs:     &dialogs{},
+		services:    &serviceRegistry{uid: randomID()},
+	}
+	return p
 }
 
 // Add appends controls to the screen and updates the page.
@@ -71,6 +103,61 @@ func (p *Page) Clean() {
 	p.Update()
 }
 
+// ShowDialog opens a dialog (AlertDialog, BottomSheet, SnackBar, DatePicker...).
+// The dialog is removed from the page once the client reports it was dismissed.
+func (p *Page) ShowDialog(d Control) error {
+	dc, ok := d.(dialogControl)
+	if !ok {
+		return fmt.Errorf("flet: %s is not a dialog", d.kind())
+	}
+	p.mu.Lock()
+	if slices.Contains(p.root.dialogs.controls, d) {
+		p.mu.Unlock()
+		return errors.New("flet: dialog is already open")
+	}
+	*dc.openField() = true
+	p.root.dialogs.controls = append(p.root.dialogs.controls, d)
+	p.mu.Unlock()
+	p.Update()
+	return nil
+}
+
+// PopDialog closes the most recently opened dialog and returns it,
+// or returns nil when no dialog is open.
+func (p *Page) PopDialog() Control {
+	p.mu.Lock()
+	var found dialogControl
+	for i := len(p.root.dialogs.controls) - 1; i >= 0; i-- {
+		if dc, ok := p.root.dialogs.controls[i].(dialogControl); ok && *dc.openField() {
+			found = dc
+			break
+		}
+	}
+	if found == nil {
+		p.mu.Unlock()
+		return nil
+	}
+	*found.openField() = false
+	p.mu.Unlock()
+	p.Update()
+	return found
+}
+
+// dialogDismissed removes a dialog the client closed. It reports whether c
+// was a dialog opened with ShowDialog.
+func (p *Page) dialogDismissed(c Control) bool {
+	p.mu.Lock()
+	i := slices.Index(p.root.dialogs.controls, c)
+	if i < 0 {
+		p.mu.Unlock()
+		return false
+	}
+	p.root.dialogs.controls = slices.Delete(p.root.dialogs.controls, i, i+1)
+	p.mu.Unlock()
+	p.Update()
+	return true
+}
+
 // Update sends the client only what changed since the last update.
 func (p *Page) Update() {
 	p.mu.Lock()
@@ -78,7 +165,7 @@ func (p *Page) Update() {
 	if !p.ready {
 		return
 	}
-	p.root.title = p.Title
+	p.sync()
 	p.diff(p.root)
 	if p.pruneNeeded {
 		p.prune()
@@ -89,11 +176,22 @@ func (p *Page) Update() {
 func (p *Page) initial() map[string]any {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.root.title = p.Title
+	p.sync()
 	m := encode(p.root)
 	p.record(p.root)
 	p.ready = true
 	return m
+}
+
+// sync copies the exported page fields into the internal tree.
+func (p *Page) sync() {
+	p.root.title = p.Title
+	if p.Window != nil {
+		p.Window.id = 2
+		p.root.window = p.Window
+	}
+	p.root.overlay.controls = p.Overlay
+	p.root.services.services = p.Services
 }
 
 func (p *Page) lookup(id int64) Control {
@@ -143,6 +241,7 @@ func (p *Page) record(c Control) {
 	}
 	p.sent[b.id] = snap
 	p.index[b.id] = c
+	b.page.Store(p)
 }
 
 // prune drops controls that are no longer in the tree from the
@@ -157,6 +256,7 @@ func (p *Page) prune() {
 	walk(p.root)
 	for id := range p.index {
 		if !alive[id] {
+			p.index[id].base().page.CompareAndSwap(p, nil)
 			delete(p.index, id)
 			delete(p.sent, id)
 		}

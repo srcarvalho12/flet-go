@@ -3,8 +3,12 @@ package flet
 import (
 	"errors"
 	"io"
+	"log"
 	"net"
 	"os"
+	"os/signal"
+	"sync/atomic"
+	"syscall"
 
 	"github.com/srcarvalho12/flet-go/internal/client"
 )
@@ -14,6 +18,9 @@ const EnvDebug = "FLETGO_DEBUG"
 
 // App launches the Flet client and runs main once it connects.
 // It returns when the window is closed.
+//
+// If the connection drops while the window is open, the client reconnects
+// and gets the same page back.
 func App(main func(page *Page)) error {
 	debug := os.Getenv(EnvDebug) != ""
 
@@ -27,31 +34,44 @@ func App(main func(page *Page)) error {
 	if err != nil {
 		return err
 	}
-	// If the client exits before connecting, unblock Accept.
 	exited := make(chan struct{})
 	go func() {
 		cmd.Wait()
 		close(exited)
-		ln.Close()
 	}()
 
-	conn, err := ln.Accept()
-	if err != nil {
-		return errors.New("flet: the client exited before connecting")
-	}
-	defer conn.Close()
+	// Close the window when the program is interrupted.
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sig)
 
-	s := &session{conn: conn, main: main, debug: debug}
-	err = s.run()
+	srv := newServer(main, debug)
+	var connected atomic.Bool
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			connected.Store(true)
+			go func() {
+				defer conn.Close()
+				err := srv.serve(conn)
+				if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, net.ErrClosed) {
+					log.Printf("flet: connection error: %v", err)
+				}
+			}()
+		}
+	}()
 
 	select {
 	case <-exited:
-	default:
+	case <-sig:
 		cmd.Process.Kill()
+		<-exited
 	}
-
-	if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
-		return nil
+	if !connected.Load() {
+		return errors.New("flet: the client exited before connecting")
 	}
-	return err
+	return nil
 }

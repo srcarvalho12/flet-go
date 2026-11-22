@@ -23,6 +23,7 @@ type Class struct {
 	DartName string    `json:"dart_name"`
 	Fields   []*Field  `json:"fields"`
 	Members  []*Member `json:"members"`
+	Methods  []*Method `json:"methods"`
 }
 
 // Field is an annotated class attribute.

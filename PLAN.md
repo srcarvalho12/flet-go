@@ -116,7 +116,7 @@ Revised after studying the Flet source and building the prototype.
 |---|---|---|
 | 1. Prototype | Counter working end to end | ✅ Done |
 | 2. Controls | Core widget set (code generator) | ✅ Done |
-| 3. Full diff, methods, reconnection | Efficient updates and multiple users | 3 to 5 days |
+| 3. Methods, dialogs, services, reconnection | Client calls and a page that survives a dropped connection | ✅ Done |
 | 4. Server-backed web | Go binary serving the app | 1 to 2 days |
 | 5–6. Android + iOS | App running on device | 1 to 3 weeks |
 | 7. CLI and packaging | Something like `flet-go build` | 2 to 4 days |
@@ -159,6 +159,9 @@ It proves:
 | 5 | Invoke method | Both ways |
 | 6 | Session crashed | Go → client |
 
+- **Method calls:** Go sends `{control_id, call_id, name, args}` with action 5. The client answers with the same action and `{control_id, call_id, result, error}`.
+- **Page children:** besides `views`, the page holds `window` (id 2), `_overlay`, `_dialogs` and `_services` (a `ServiceRegistry` whose `_services` list holds Clipboard, FilePicker...).
+
 - **Control:** a map with `_c` (type, e.g. `"Text"`), `_i` (id) and the properties. Events appear as `on_click: true`.
 - **Reserved IDs:** 1 = Page, 2 = Window. Go controls start at 3.
 - **Registration:** the client sends size, platform and theme. Go replies with the full page (`page_patch`).
@@ -167,11 +170,13 @@ It proves:
 ### Current layout
 
 ```
-app.go              → launches the client and waits for the connection
-page.go             → tree, diff and sending changes
-session.go          → client messages
+app.go              → launches the client and accepts its connections
+page.go             → tree, diff, dialogs and sending changes
+session.go          → client messages, sessions and reconnection
+invoke.go           → client method calls and the event queue
+methods.go          → client methods written by hand
 control.go          → control base and IDs
-controls.go         → internal page root and view
+controls.go         → internal page root, view, overlay, dialogs and services
 values.go           → Color, IconData, pointer helpers, value encoding
 event.go            → base event
 *_gen.go            → generated controls, value types, events and enums
@@ -184,6 +189,7 @@ tools/codegen/      → Go code generator
 examples/counter/   → the counter
 examples/list/      → add, remove and reorder list items
 examples/gallery/   → sample of generated controls and inputs
+examples/services/  → dialogs, snack bar, focus, clipboard, file picker, window
 ```
 
 `page_test.go` includes a fake client that applies patches the same way the Dart client does, so the diff can be tested without opening a window.
@@ -211,7 +217,7 @@ The controls are generated from the Flet Python SDK, which is the most complete 
 1. `python3 -I tools/specgen/extract.py <flet-checkout> spec/flet.json` reads the Python sources with `ast` and writes the spec. Only needed when updating the Flet version.
 2. `go generate ./...` runs `tools/codegen`, which writes `*_gen.go`, `colors/` and `icons/`.
 
-Generated for v1.1.2: 132 controls, 134 value types, 63 typed events, 96 enums, ~400 colors and ~10k icons.
+Generated for v1.1.2: 152 controls (including services and the window), 134 value types, 63 typed events, 96 enums, 111 client methods, ~400 colors and ~10k icons.
 
 Type mapping rules:
 
@@ -230,12 +236,34 @@ Type mapping rules:
 
 Properties changed on the client (e.g. `TextField.value` while typing) are applied back to the Go struct.
 
+Client methods (e.g. `focus()`, `Clipboard.get()`) become blocking Go methods that return an error, plus the result when there is one:
+
+| Python | Go |
+|---|---|
+| `await field.focus()` | `err := field.Focus()` |
+| `await clipboard.get()` | `text, err := clipboard.Get()` |
+| `await picker.pick_files(allow_multiple=True)` | `files, err := picker.PickFiles(flet.PickFilesOptions{AllowMultiple: true})` |
+
+Required parameters are positional; optional ones go in an `...Options` struct. Methods that do more than one client call are written by hand in `methods.go`.
+
+### Methods, dialogs and services (phase 3)
+
+- **Event queue:** handlers run one at a time on a goroutine per page, so a handler can call a client method and wait while the session keeps reading.
+- **Dialogs:** `page.ShowDialog(d)` and `page.PopDialog()`. A dialog leaves the page when the client reports it was dismissed.
+- **Services:** add them to `page.Services` before calling their methods.
+- **Window:** `page.Window` has the window properties and methods (`Center`, `Close`, `ToFront`...). Its size is filled in from the client.
+- **Page info:** `page.Width`, `Height`, `Platform`, `PlatformBrightness`, `Web` and `Route` come from the client.
+- **Reconnection:** if the connection drops while the window is open, the client reconnects with its session id and gets the same page back; `main` does not run again. Method calls that were waiting fail with `ErrDisconnected`.
+- **Errors:** a panic in `main` or in a handler is logged and shown in the client.
+
 ### Known limitations
 
-- Events are handled one at a time, in arrival order.
-- No reconnection.
+- Events are handled one at a time, in arrival order. A handler waiting on a slow method (e.g. the file picker) holds back the next events.
+- Sessions are kept while the program runs; there is no expiry yet (needed for web).
+- Page events (`on_resize`, `on_route_change`...), routing and page methods (`push_route`, `get_device_info`) are not exposed yet.
+- `Share` methods are not generated yet.
 - Automatic download not yet tested on Windows and not supported on Linux.
-- Not generated yet: canvas shapes, services (FilePicker, Clipboard...), extension packages (charts, maps, video...), control methods (e.g. `focus()`, dialogs), and 28 fields with rare types (dates, bytes).
+- Not generated yet: canvas shapes, extension packages (charts, maps, video...), and 24 fields with rare types (dates, times).
 
 ---
 
@@ -248,4 +276,5 @@ Properties changed on the client (e.g. `TextField.value` while typing) are appli
 5. ~~Automatic client download~~ → macOS and Windows.
 6. ~~Item-by-item list diff and index cleanup~~ → add/remove/move ops, tested against a simulated client and the real one (`examples/list`).
 7. ~~Phase 2: control generator from Flet's definitions~~ → see "Code generation".
-8. Phase 3: control methods (invoke method), dialogs and services, reconnection.
+8. ~~Phase 3: control methods, dialogs, services, reconnection~~ → see "Methods, dialogs and services".
+9. Phase 4: server-backed web (Go serves the Flutter web client over WebSocket), with session expiry.

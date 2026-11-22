@@ -242,6 +242,10 @@ func (m *model) emitControls(out string) error {
 		w.p("")
 		w.p("func (c *%s) kind() string { return %q }", name, c.DartName)
 		w.p("")
+		if m.isA(name, "DialogControl") {
+			w.p("func (c *%s) openField() *bool { return &c.Open }", name)
+			w.p("")
+		}
 
 		w.p("func (c *%s) props() map[string]any {", name)
 		w.p("m := map[string]any{}")
@@ -335,6 +339,25 @@ func (m *model) emitControls(out string) error {
 		}
 	}
 	return writeGo(filepath.Join(out, "controls_gen.go"), w)
+}
+
+// allMethods returns the client methods of every generated control.
+func (m *model) allMethods() map[string][]*method {
+	all := map[string][]*method{}
+	for _, name := range sortedNames(m.controls) {
+		names := map[string]bool{}
+		report := m.report
+		m.report = map[string]int{} // fields were already counted
+		for _, f := range m.fields(name, nil) {
+			names[f.goName] = true
+		}
+		m.report = report
+		if ms := m.methods(name, names); len(ms) > 0 {
+			all[name] = ms
+		}
+	}
+	m.assignOptionNames(all)
+	return all
 }
 
 // ---------- colors and icons ----------

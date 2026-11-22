@@ -1675,7 +1675,7 @@ func (v *DatePickerTheme) toMap() map[string]any {
 // DecorationImage: An image for a box decoration.
 type DecorationImage struct {
 	// Src: The image source to paint.
-	Src string `msgpack:"src,omitempty"`
+	Src any `msgpack:"src,omitempty"`
 	// ColorFilter: A color filter to apply to the image before painting it.
 	ColorFilter *ColorFilter `msgpack:"color_filter,omitempty"`
 	// Fit: How the image should be inscribed into the box.
@@ -1703,7 +1703,9 @@ func (v *DecorationImage) toMap() map[string]any {
 		return nil
 	}
 	m := map[string]any{}
-	setIf(m, "src", v.Src)
+	if v.Src != nil {
+		m["src"] = encodeAny(v.Src)
+	}
 	if v.ColorFilter != nil {
 		m["color_filter"] = v.ColorFilter.toMap()
 	}
@@ -1945,6 +1947,8 @@ type FilePickerFile struct {
 	Size int `msgpack:"size,omitempty"`
 	// Path: Absolute path to the selected file, when available.
 	Path string `msgpack:"path,omitempty"`
+	// Bytes: File contents.
+	Bytes []byte `msgpack:"bytes,omitempty"`
 }
 
 func (v *FilePickerFile) toMap() map[string]any {
@@ -1956,6 +1960,9 @@ func (v *FilePickerFile) toMap() map[string]any {
 	m["name"] = v.Name
 	m["size"] = v.Size
 	setIf(m, "path", v.Path)
+	if len(v.Bytes) > 0 {
+		m["bytes"] = slices.Clone(v.Bytes)
+	}
 	return m
 }
 
@@ -4100,6 +4107,8 @@ type PastedFile struct {
 	Name string `msgpack:"name,omitempty"`
 	// MimeType: MIME type reported by the platform, e.g. `"image/png"`; can be empty.
 	MimeType string `msgpack:"mime_type,omitempty"`
+	// Bytes: File contents.
+	Bytes []byte `msgpack:"bytes,omitempty"`
 }
 
 func (v *PastedFile) toMap() map[string]any {
@@ -4109,6 +4118,9 @@ func (v *PastedFile) toMap() map[string]any {
 	m := map[string]any{}
 	m["name"] = v.Name
 	m["mime_type"] = v.MimeType
+	if len(v.Bytes) > 0 {
+		m["bytes"] = slices.Clone(v.Bytes)
+	}
 	return m
 }
 
@@ -4829,6 +4841,8 @@ func (v *ShapeBorder) toMap() map[string]any {
 type ShareFile struct {
 	// Path: Filesystem path to the file to share.
 	Path string `msgpack:"path,omitempty"`
+	// Data: Raw bytes of the file to share.
+	Data []byte `msgpack:"data,omitempty"`
 	// MimeType: MIME type of the file.
 	MimeType string `msgpack:"mime_type,omitempty"`
 	// Name: Optional name of the file.
@@ -4841,6 +4855,9 @@ func (v *ShareFile) toMap() map[string]any {
 	}
 	m := map[string]any{}
 	setIf(m, "path", v.Path)
+	if len(v.Data) > 0 {
+		m["data"] = slices.Clone(v.Data)
+	}
 	setIf(m, "mime_type", v.MimeType)
 	setIf(m, "name", v.Name)
 	return m

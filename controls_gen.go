@@ -12,6 +12,74 @@ var _ = maps.Clone[map[string]any]
 var _ = slices.Clone[[]string]
 var _ time.Duration
 
+// Accelerometer: Streams raw accelerometer `AccelerometerReadingEvent`, which describe
+// the acceleration of the device, in `m/s^2`, including the effects of gravity.
+type Accelerometer struct {
+	controlBase
+	// Enabled: Whether the sensor should be sampled. Disable to stop streaming.
+	Enabled *bool
+	// Interval: Desired sampling interval provided as a `Duration`. Defaults to 200 ms.
+	Interval time.Duration
+	// CancelOnError: Whether the stream subscription should cancel on the first sensor
+	// error.
+	CancelOnError *bool
+	// OnReading: Fires when a new reading is available.
+	OnReading func(e *AccelerometerReadingEvent)
+	// OnError: Fired when the platform reports a sensor error (for example when the device
+	// does not expose the accelerometer). `event.message` contains the error text.
+	OnError func(e *SensorErrorEvent)
+}
+
+func (c *Accelerometer) kind() string { return "Accelerometer" }
+
+func (c *Accelerometer) props() map[string]any {
+	m := map[string]any{}
+	if c.Enabled != nil {
+		m["enabled"] = *c.Enabled
+	}
+	if c.Interval != 0 {
+		m["interval"] = c.Interval.Milliseconds()
+	}
+	if c.CancelOnError != nil {
+		m["cancel_on_error"] = *c.CancelOnError
+	}
+	if c.OnReading != nil {
+		m["on_reading"] = true
+	}
+	if c.OnError != nil {
+		m["on_error"] = true
+	}
+	return m
+}
+
+func (c *Accelerometer) applyProps(p map[string]any) {
+	for k, v := range p {
+		switch k {
+		case "enabled":
+			assignPtr(&c.Enabled, v)
+		case "cancel_on_error":
+			assignPtr(&c.CancelOnError, v)
+		}
+	}
+}
+
+func (c *Accelerometer) handleEvent(e *Event) {
+	switch e.Name {
+	case "reading":
+		if c.OnReading != nil {
+			ev := &AccelerometerReadingEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnReading(ev)
+		}
+	case "error":
+		if c.OnError != nil {
+			ev := &SensorErrorEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnError(ev)
+		}
+	}
+}
+
 // AlertDialog: Can be used to inform the user about situations that require
 // acknowledgement.
 type AlertDialog struct {
@@ -107,6 +175,8 @@ type AlertDialog struct {
 }
 
 func (c *AlertDialog) kind() string { return "AlertDialog" }
+
+func (c *AlertDialog) openField() *bool { return &c.Open }
 
 func (c *AlertDialog) props() map[string]any {
 	m := map[string]any{}
@@ -1308,6 +1378,8 @@ type Banner struct {
 
 func (c *Banner) kind() string { return "Banner" }
 
+func (c *Banner) openField() *bool { return &c.Open }
+
 func (c *Banner) props() map[string]any {
 	m := map[string]any{}
 	if c.Expand != nil {
@@ -1436,6 +1508,104 @@ func (c *Banner) handleEvent(e *Event) {
 	case "visible":
 		if c.OnVisible != nil {
 			c.OnVisible(e)
+		}
+	}
+}
+
+// Barometer: Streams barometer `BarometerReadingEvent` samples (atmospheric pressure in
+// `hPa`). Useful for altitude calculations and weather-related experiences.
+type Barometer struct {
+	controlBase
+	// Enabled: Whether the sensor should be sampled. Disable to stop streaming.
+	Enabled *bool
+	// Interval: Desired sampling interval provided as a `Duration`. Defaults to 200 ms,
+	// though some platforms (such as iOS) ignore custom sampling intervals.
+	Interval time.Duration
+	// CancelOnError: Whether the stream subscription should cancel on the first sensor
+	// error.
+	CancelOnError *bool
+	// OnReading: Fires when a new reading is available.
+	OnReading func(e *BarometerReadingEvent)
+	// OnError: Fired when the platform reports a sensor error. `event.message` is the error
+	// description.
+	OnError func(e *SensorErrorEvent)
+}
+
+func (c *Barometer) kind() string { return "Barometer" }
+
+func (c *Barometer) props() map[string]any {
+	m := map[string]any{}
+	if c.Enabled != nil {
+		m["enabled"] = *c.Enabled
+	}
+	if c.Interval != 0 {
+		m["interval"] = c.Interval.Milliseconds()
+	}
+	if c.CancelOnError != nil {
+		m["cancel_on_error"] = *c.CancelOnError
+	}
+	if c.OnReading != nil {
+		m["on_reading"] = true
+	}
+	if c.OnError != nil {
+		m["on_error"] = true
+	}
+	return m
+}
+
+func (c *Barometer) applyProps(p map[string]any) {
+	for k, v := range p {
+		switch k {
+		case "enabled":
+			assignPtr(&c.Enabled, v)
+		case "cancel_on_error":
+			assignPtr(&c.CancelOnError, v)
+		}
+	}
+}
+
+func (c *Barometer) handleEvent(e *Event) {
+	switch e.Name {
+	case "reading":
+		if c.OnReading != nil {
+			ev := &BarometerReadingEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnReading(ev)
+		}
+	case "error":
+		if c.OnError != nil {
+			ev := &SensorErrorEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnError(ev)
+		}
+	}
+}
+
+// Battery: Provides access to device battery information and state changes.
+type Battery struct {
+	controlBase
+	// OnStateChange: Called when battery state changes (charging, discharging, full,
+	// unknown).
+	OnStateChange func(e *BatteryStateChangeEvent)
+}
+
+func (c *Battery) kind() string { return "Battery" }
+
+func (c *Battery) props() map[string]any {
+	m := map[string]any{}
+	if c.OnStateChange != nil {
+		m["on_state_change"] = true
+	}
+	return m
+}
+
+func (c *Battery) handleEvent(e *Event) {
+	switch e.Name {
+	case "state_change":
+		if c.OnStateChange != nil {
+			ev := &BatteryStateChangeEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnStateChange(ev)
 		}
 	}
 }
@@ -1813,6 +1983,8 @@ type BottomSheet struct {
 
 func (c *BottomSheet) kind() string { return "BottomSheet" }
 
+func (c *BottomSheet) openField() *bool { return &c.Open }
+
 func (c *BottomSheet) props() map[string]any {
 	m := map[string]any{}
 	if c.Expand != nil {
@@ -1933,6 +2105,18 @@ func (c *BottomSheet) handleEvent(e *Event) {
 			c.OnDismiss(e)
 		}
 	}
+}
+
+// BrowserContextMenu: Controls the browser's context menu on the web platform.
+type BrowserContextMenu struct {
+	controlBase
+}
+
+func (c *BrowserContextMenu) kind() string { return "BrowserContextMenu" }
+
+func (c *BrowserContextMenu) props() map[string]any {
+	m := map[string]any{}
+	return m
 }
 
 // Button: A material button.
@@ -3575,11 +3759,11 @@ type CircleAvatar struct {
 	Content any
 	// ForegroundImageSrc: The source (local asset file or URL) of the foreground image in
 	// the circle.
-	ForegroundImageSrc string
+	ForegroundImageSrc any
 	// BackgroundImageSrc: The source (local asset file or URL) of the background image in
 	// the circle. Changing the background image will cause the avatar to animate to the new
 	// image.
-	BackgroundImageSrc string
+	BackgroundImageSrc any
 	// Color: The default color for text in this avatar.
 	Color Color
 	// Bgcolor: The color with which to fill the circle.
@@ -3694,8 +3878,12 @@ func (c *CircleAvatar) props() map[string]any {
 			m["content"] = encodeAny(c.Content)
 		}
 	}
-	setIf(m, "foreground_image_src", c.ForegroundImageSrc)
-	setIf(m, "background_image_src", c.BackgroundImageSrc)
+	if c.ForegroundImageSrc != nil {
+		m["foreground_image_src"] = encodeAny(c.ForegroundImageSrc)
+	}
+	if c.BackgroundImageSrc != nil {
+		m["background_image_src"] = encodeAny(c.BackgroundImageSrc)
+	}
 	setIf(m, "color", c.Color)
 	setIf(m, "bgcolor", c.Bgcolor)
 	setIf(m, "radius", c.Radius)
@@ -3755,10 +3943,6 @@ func (c *CircleAvatar) applyProps(p map[string]any) {
 			assign(&c.AspectRatio, v)
 		case "size_change_interval":
 			assignPtr(&c.SizeChangeInterval, v)
-		case "foreground_image_src":
-			assign(&c.ForegroundImageSrc, v)
-		case "background_image_src":
-			assign(&c.BackgroundImageSrc, v)
 		case "color":
 			assign(&c.Color, v)
 		case "bgcolor":
@@ -3790,6 +3974,18 @@ func (c *CircleAvatar) handleEvent(e *Event) {
 			c.OnImageError(e)
 		}
 	}
+}
+
+// Clipboard: Provides access to the system clipboard.
+type Clipboard struct {
+	controlBase
+}
+
+func (c *Clipboard) kind() string { return "Clipboard" }
+
+func (c *Clipboard) props() map[string]any {
+	m := map[string]any{}
+	return m
 }
 
 // Column: Arranges child controls vertically, optionally aligning and spacing them within
@@ -4134,6 +4330,34 @@ func (c *Column) handleEvent(e *Event) {
 	case "animation_end":
 		if c.OnAnimationEnd != nil {
 			c.OnAnimationEnd(e)
+		}
+	}
+}
+
+// Connectivity: Provides device connectivity status and change notifications.
+type Connectivity struct {
+	controlBase
+	// OnChange: Called when connectivity changes.
+	OnChange func(e *ConnectivityChangeEvent)
+}
+
+func (c *Connectivity) kind() string { return "Connectivity" }
+
+func (c *Connectivity) props() map[string]any {
+	m := map[string]any{}
+	if c.OnChange != nil {
+		m["on_change"] = true
+	}
+	return m
+}
+
+func (c *Connectivity) handleEvent(e *Event) {
+	switch e.Name {
+	case "change":
+		if c.OnChange != nil {
+			ev := &ConnectivityChangeEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnChange(ev)
 		}
 	}
 }
@@ -5785,6 +6009,8 @@ type CupertinoAlertDialog struct {
 
 func (c *CupertinoAlertDialog) kind() string { return "CupertinoAlertDialog" }
 
+func (c *CupertinoAlertDialog) openField() *bool { return &c.Open }
+
 func (c *CupertinoAlertDialog) props() map[string]any {
 	m := map[string]any{}
 	if c.Expand != nil {
@@ -6104,6 +6330,8 @@ type CupertinoBottomSheet struct {
 }
 
 func (c *CupertinoBottomSheet) kind() string { return "CupertinoBottomSheet" }
+
+func (c *CupertinoBottomSheet) openField() *bool { return &c.Open }
 
 func (c *CupertinoBottomSheet) props() map[string]any {
 	m := map[string]any{}
@@ -10394,10 +10622,10 @@ type CupertinoSwitch struct {
 	OffLabelColor Color
 	// ActiveThumbImageSrc: An image to use on the thumb of this switch when the switch is
 	// on.
-	ActiveThumbImageSrc string
+	ActiveThumbImageSrc any
 	// InactiveThumbImageSrc: An image to use on the thumb of this switch when the switch is
 	// off.
-	InactiveThumbImageSrc string
+	InactiveThumbImageSrc any
 	// ActiveTrackColor: The color to use on the track when this switch is on.
 	ActiveTrackColor Color
 	// InactiveThumbColor: The color to use on the thumb when this switch is off.
@@ -10523,8 +10751,12 @@ func (c *CupertinoSwitch) props() map[string]any {
 	setIf(m, "autofocus", c.Autofocus)
 	setIf(m, "on_label_color", c.OnLabelColor)
 	setIf(m, "off_label_color", c.OffLabelColor)
-	setIf(m, "active_thumb_image_src", c.ActiveThumbImageSrc)
-	setIf(m, "inactive_thumb_image_src", c.InactiveThumbImageSrc)
+	if c.ActiveThumbImageSrc != nil {
+		m["active_thumb_image_src"] = encodeAny(c.ActiveThumbImageSrc)
+	}
+	if c.InactiveThumbImageSrc != nil {
+		m["inactive_thumb_image_src"] = encodeAny(c.InactiveThumbImageSrc)
+	}
 	setIf(m, "active_track_color", c.ActiveTrackColor)
 	setIf(m, "inactive_thumb_color", c.InactiveThumbColor)
 	setIf(m, "inactive_track_color", c.InactiveTrackColor)
@@ -10613,10 +10845,6 @@ func (c *CupertinoSwitch) applyProps(p map[string]any) {
 			assign(&c.OnLabelColor, v)
 		case "off_label_color":
 			assign(&c.OffLabelColor, v)
-		case "active_thumb_image_src":
-			assign(&c.ActiveThumbImageSrc, v)
-		case "inactive_thumb_image_src":
-			assign(&c.InactiveThumbImageSrc, v)
 		case "active_track_color":
 			assign(&c.ActiveTrackColor, v)
 		case "inactive_thumb_color":
@@ -13154,6 +13382,8 @@ type DatePicker struct {
 
 func (c *DatePicker) kind() string { return "DatePicker" }
 
+func (c *DatePicker) openField() *bool { return &c.Open }
+
 func (c *DatePicker) props() map[string]any {
 	m := map[string]any{}
 	if c.Expand != nil {
@@ -13375,6 +13605,8 @@ type DateRangePicker struct {
 }
 
 func (c *DateRangePicker) kind() string { return "DateRangePicker" }
+
+func (c *DateRangePicker) openField() *bool { return &c.Open }
 
 func (c *DateRangePicker) props() map[string]any {
 	m := map[string]any{}
@@ -16695,6 +16927,46 @@ func (c *ExpansionTile) handleEvent(e *Event) {
 	case "change":
 		if c.OnChange != nil {
 			c.OnChange(e)
+		}
+	}
+}
+
+// FilePicker: A control that allows you to use the native file explorer to pick single or
+// multiple files, with extensions filtering support and upload.
+type FilePicker struct {
+	controlBase
+	// OnResult: Called when files are selected through a `PickFiles` action.
+	OnResult func(e *FilePickerResultEvent)
+	// OnUpload: Called when a file is uploaded via `upload` method.
+	OnUpload func(e *FilePickerUploadEvent)
+}
+
+func (c *FilePicker) kind() string { return "FilePicker" }
+
+func (c *FilePicker) props() map[string]any {
+	m := map[string]any{}
+	if c.OnResult != nil {
+		m["on_result"] = true
+	}
+	if c.OnUpload != nil {
+		m["on_upload"] = true
+	}
+	return m
+}
+
+func (c *FilePicker) handleEvent(e *Event) {
+	switch e.Name {
+	case "result":
+		if c.OnResult != nil {
+			ev := &FilePickerResultEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnResult(ev)
+		}
+	case "upload":
+		if c.OnUpload != nil {
+			ev := &FilePickerUploadEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnUpload(ev)
 		}
 	}
 }
@@ -20528,6 +20800,86 @@ func (c *GridView) handleEvent(e *Event) {
 	}
 }
 
+// Gyroscope: Streams gyroscope `GyroscopeReadingEvent`, reporting device rotation rate
+// around each axis in `rad/s`.
+type Gyroscope struct {
+	controlBase
+	// Enabled: Whether the sensor should be sampled. Disable to stop streaming.
+	Enabled *bool
+	// Interval: Desired sampling interval provided as a `Duration`. Defaults to 200 ms.
+	Interval time.Duration
+	// CancelOnError: Whether the stream subscription should cancel on the first sensor
+	// error.
+	CancelOnError *bool
+	// OnReading: Fires when a new reading is available.
+	OnReading func(e *GyroscopeReadingEvent)
+	// OnError: Fired when the platform reports a sensor error. `event.message` is the error
+	// description.
+	OnError func(e *SensorErrorEvent)
+}
+
+func (c *Gyroscope) kind() string { return "Gyroscope" }
+
+func (c *Gyroscope) props() map[string]any {
+	m := map[string]any{}
+	if c.Enabled != nil {
+		m["enabled"] = *c.Enabled
+	}
+	if c.Interval != 0 {
+		m["interval"] = c.Interval.Milliseconds()
+	}
+	if c.CancelOnError != nil {
+		m["cancel_on_error"] = *c.CancelOnError
+	}
+	if c.OnReading != nil {
+		m["on_reading"] = true
+	}
+	if c.OnError != nil {
+		m["on_error"] = true
+	}
+	return m
+}
+
+func (c *Gyroscope) applyProps(p map[string]any) {
+	for k, v := range p {
+		switch k {
+		case "enabled":
+			assignPtr(&c.Enabled, v)
+		case "cancel_on_error":
+			assignPtr(&c.CancelOnError, v)
+		}
+	}
+}
+
+func (c *Gyroscope) handleEvent(e *Event) {
+	switch e.Name {
+	case "reading":
+		if c.OnReading != nil {
+			ev := &GyroscopeReadingEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnReading(ev)
+		}
+	case "error":
+		if c.OnError != nil {
+			ev := &SensorErrorEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnError(ev)
+		}
+	}
+}
+
+// HapticFeedback: Allows access to the haptic feedback interface on the device.
+type HapticFeedback struct {
+	controlBase
+}
+
+func (c *HapticFeedback) kind() string { return "HapticFeedback" }
+
+func (c *HapticFeedback) props() map[string]any {
+	m := map[string]any{}
+	return m
+}
+
 // Hero: Marks the `content` as a shared element for route transitions.
 type Hero struct {
 	controlBase
@@ -21634,7 +21986,7 @@ type Image struct {
 	// OnAnimationEnd: Called when animation completes.
 	OnAnimationEnd func(e *Event)
 	// Src: The image source.
-	Src string
+	Src any
 	// ErrorContent: Fallback control to display if the image cannot be loaded from the
 	// provided source.
 	ErrorContent Control
@@ -21658,7 +22010,7 @@ type Image struct {
 	// FilterQuality: The rendering quality of the image.
 	FilterQuality FilterQuality
 	// PlaceholderSrc: A placeholder displayed while the image is loading.
-	PlaceholderSrc string
+	PlaceholderSrc any
 	// PlaceholderFit: Defines how to inscribe the placeholder into its space.
 	PlaceholderFit BoxFit
 	// FadeInAnimation: Fade-in animation of the `src` image as it appears after loading,
@@ -21767,7 +22119,9 @@ func (c *Image) props() map[string]any {
 	if c.OnAnimationEnd != nil {
 		m["on_animation_end"] = true
 	}
-	m["src"] = c.Src
+	if c.Src != nil {
+		m["src"] = encodeAny(c.Src)
+	}
 	setIf(m, "repeat", c.Repeat)
 	setIf(m, "fit", c.Fit)
 	if c.BorderRadius != nil {
@@ -21779,7 +22133,9 @@ func (c *Image) props() map[string]any {
 	setIf(m, "semantics_label", c.SemanticsLabel)
 	setIf(m, "exclude_from_semantics", c.ExcludeFromSemantics)
 	setIf(m, "filter_quality", c.FilterQuality)
-	setIf(m, "placeholder_src", c.PlaceholderSrc)
+	if c.PlaceholderSrc != nil {
+		m["placeholder_src"] = encodeAny(c.PlaceholderSrc)
+	}
 	setIf(m, "placeholder_fit", c.PlaceholderFit)
 	if c.FadeInAnimation != nil {
 		m["fade_in_animation"] = c.FadeInAnimation.toMap()
@@ -21841,8 +22197,6 @@ func (c *Image) applyProps(p map[string]any) {
 			assign(&c.AspectRatio, v)
 		case "size_change_interval":
 			assignPtr(&c.SizeChangeInterval, v)
-		case "src":
-			assign(&c.Src, v)
 		case "repeat":
 			assign(&c.Repeat, v)
 		case "fit":
@@ -21859,8 +22213,6 @@ func (c *Image) applyProps(p map[string]any) {
 			assign(&c.ExcludeFromSemantics, v)
 		case "filter_quality":
 			assign(&c.FilterQuality, v)
-		case "placeholder_src":
-			assign(&c.PlaceholderSrc, v)
 		case "placeholder_fit":
 			assign(&c.PlaceholderFit, v)
 		case "cache_width":
@@ -23243,6 +23595,74 @@ func (c *ListView) handleEvent(e *Event) {
 	case "animation_end":
 		if c.OnAnimationEnd != nil {
 			c.OnAnimationEnd(e)
+		}
+	}
+}
+
+// Magnetometer: Streams magnetometer `MagnetometerReadingEvent` reporting the ambient
+// magnetic field (`uT`) per axis for compass-style use cases.
+type Magnetometer struct {
+	controlBase
+	// Enabled: Whether the sensor should be sampled. Disable to stop streaming.
+	Enabled *bool
+	// Interval: Desired sampling interval provided as a `Duration`. Defaults to 200 ms.
+	Interval time.Duration
+	// CancelOnError: Whether the stream subscription should cancel on the first sensor
+	// error.
+	CancelOnError *bool
+	// OnReading: Fires when a new reading is available.
+	OnReading func(e *MagnetometerReadingEvent)
+	// OnError: Fired when the platform reports a sensor error. `event.message` is the error
+	// description.
+	OnError func(e *SensorErrorEvent)
+}
+
+func (c *Magnetometer) kind() string { return "Magnetometer" }
+
+func (c *Magnetometer) props() map[string]any {
+	m := map[string]any{}
+	if c.Enabled != nil {
+		m["enabled"] = *c.Enabled
+	}
+	if c.Interval != 0 {
+		m["interval"] = c.Interval.Milliseconds()
+	}
+	if c.CancelOnError != nil {
+		m["cancel_on_error"] = *c.CancelOnError
+	}
+	if c.OnReading != nil {
+		m["on_reading"] = true
+	}
+	if c.OnError != nil {
+		m["on_error"] = true
+	}
+	return m
+}
+
+func (c *Magnetometer) applyProps(p map[string]any) {
+	for k, v := range p {
+		switch k {
+		case "enabled":
+			assignPtr(&c.Enabled, v)
+		case "cancel_on_error":
+			assignPtr(&c.CancelOnError, v)
+		}
+	}
+}
+
+func (c *Magnetometer) handleEvent(e *Event) {
+	switch e.Name {
+	case "reading":
+		if c.OnReading != nil {
+			ev := &MagnetometerReadingEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnReading(ev)
+		}
+	case "error":
+		if c.OnError != nil {
+			ev := &SensorErrorEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnError(ev)
 		}
 	}
 }
@@ -31777,6 +32197,47 @@ func (c *SafeArea) handleEvent(e *Event) {
 	}
 }
 
+// ScreenBrightness: Provides access to control and observe system and application screen
+// brightness.
+type ScreenBrightness struct {
+	controlBase
+	// OnSystemScreenBrightnessChange: Called when the **system** screen brightness changes.
+	OnSystemScreenBrightnessChange func(e *ScreenBrightnessChangeEvent)
+	// OnApplicationScreenBrightnessChange: Called when the **application** screen brightness
+	// changes.
+	OnApplicationScreenBrightnessChange func(e *ScreenBrightnessChangeEvent)
+}
+
+func (c *ScreenBrightness) kind() string { return "ScreenBrightness" }
+
+func (c *ScreenBrightness) props() map[string]any {
+	m := map[string]any{}
+	if c.OnSystemScreenBrightnessChange != nil {
+		m["on_system_screen_brightness_change"] = true
+	}
+	if c.OnApplicationScreenBrightnessChange != nil {
+		m["on_application_screen_brightness_change"] = true
+	}
+	return m
+}
+
+func (c *ScreenBrightness) handleEvent(e *Event) {
+	switch e.Name {
+	case "system_screen_brightness_change":
+		if c.OnSystemScreenBrightnessChange != nil {
+			ev := &ScreenBrightnessChangeEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnSystemScreenBrightnessChange(ev)
+		}
+	case "application_screen_brightness_change":
+		if c.OnApplicationScreenBrightnessChange != nil {
+			ev := &ScreenBrightnessChangeEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnApplicationScreenBrightnessChange(ev)
+		}
+	}
+}
+
 // Screenshot: Takes a screenshot of containing control.
 type Screenshot struct {
 	controlBase
@@ -33342,6 +33803,18 @@ func (c *Semantics) handleEvent(e *Event) {
 	}
 }
 
+// SemanticsService: Allows access to the platform's accessibility services.
+type SemanticsService struct {
+	controlBase
+}
+
+func (c *SemanticsService) kind() string { return "SemanticsService" }
+
+func (c *SemanticsService) props() map[string]any {
+	m := map[string]any{}
+	return m
+}
+
 // ShaderMask: Applies a mask generated by a shader to its `content`.
 type ShaderMask struct {
 	controlBase
@@ -33612,6 +34085,91 @@ func (c *ShaderMask) handleEvent(e *Event) {
 			c.OnAnimationEnd(e)
 		}
 	}
+}
+
+// ShakeDetector: Detects phone shakes.
+type ShakeDetector struct {
+	controlBase
+	// MinimumShakeCount: Number of shakes required before shake is triggered.
+	MinimumShakeCount *int
+	// ShakeSlopTimeMs: Minimum time between shakes, in milliseconds.
+	ShakeSlopTimeMs *int
+	// ShakeCountResetTimeMs: Time, in milliseconds, before shake count resets.
+	ShakeCountResetTimeMs *int
+	// ShakeThresholdGravity: Shake detection threshold, in Gs.
+	ShakeThresholdGravity *float64
+	// OnShake: Called when a shake is detected.
+	OnShake func(e *Event)
+}
+
+func (c *ShakeDetector) kind() string { return "ShakeDetector" }
+
+func (c *ShakeDetector) props() map[string]any {
+	m := map[string]any{}
+	if c.MinimumShakeCount != nil {
+		m["minimum_shake_count"] = *c.MinimumShakeCount
+	}
+	if c.ShakeSlopTimeMs != nil {
+		m["shake_slop_time_ms"] = *c.ShakeSlopTimeMs
+	}
+	if c.ShakeCountResetTimeMs != nil {
+		m["shake_count_reset_time_ms"] = *c.ShakeCountResetTimeMs
+	}
+	if c.ShakeThresholdGravity != nil {
+		m["shake_threshold_gravity"] = *c.ShakeThresholdGravity
+	}
+	if c.OnShake != nil {
+		m["on_shake"] = true
+	}
+	return m
+}
+
+func (c *ShakeDetector) applyProps(p map[string]any) {
+	for k, v := range p {
+		switch k {
+		case "minimum_shake_count":
+			assignPtr(&c.MinimumShakeCount, v)
+		case "shake_slop_time_ms":
+			assignPtr(&c.ShakeSlopTimeMs, v)
+		case "shake_count_reset_time_ms":
+			assignPtr(&c.ShakeCountResetTimeMs, v)
+		case "shake_threshold_gravity":
+			assignPtr(&c.ShakeThresholdGravity, v)
+		}
+	}
+}
+
+func (c *ShakeDetector) handleEvent(e *Event) {
+	switch e.Name {
+	case "shake":
+		if c.OnShake != nil {
+			c.OnShake(e)
+		}
+	}
+}
+
+// Share: Shares text, links, or files using the platform share sheet.
+type Share struct {
+	controlBase
+}
+
+func (c *Share) kind() string { return "Share" }
+
+func (c *Share) props() map[string]any {
+	m := map[string]any{}
+	return m
+}
+
+// SharedPreferences: Provides access to persistent key-value storage.
+type SharedPreferences struct {
+	controlBase
+}
+
+func (c *SharedPreferences) kind() string { return "SharedPreferences" }
+
+func (c *SharedPreferences) props() map[string]any {
+	m := map[string]any{}
+	return m
 }
 
 // Shimmer: Applies an animated shimmering effect to its `content`.
@@ -34379,6 +34937,8 @@ type SnackBar struct {
 
 func (c *SnackBar) kind() string { return "SnackBar" }
 
+func (c *SnackBar) openField() *bool { return &c.Open }
+
 func (c *SnackBar) props() map[string]any {
 	m := map[string]any{}
 	if c.Expand != nil {
@@ -34932,6 +35492,18 @@ func (c *Stack) handleEvent(e *Event) {
 			c.OnAnimationEnd(e)
 		}
 	}
+}
+
+// StoragePaths: Provides access to commonly used storage paths on the device.
+type StoragePaths struct {
+	controlBase
+}
+
+func (c *StoragePaths) kind() string { return "StoragePaths" }
+
+func (c *StoragePaths) props() map[string]any {
+	m := map[string]any{}
+	return m
 }
 
 // SubmenuButton: A menu button that displays a cascading menu.
@@ -38615,6 +39187,8 @@ type TimePicker struct {
 
 func (c *TimePicker) kind() string { return "TimePicker" }
 
+func (c *TimePicker) openField() *bool { return &c.Open }
+
 func (c *TimePicker) props() map[string]any {
 	m := map[string]any{}
 	if c.Expand != nil {
@@ -39004,6 +39578,85 @@ func (c *TransparentPointer) handleEvent(e *Event) {
 	}
 }
 
+// UrlLauncher: Provides access to URL launching capabilities.
+type UrlLauncher struct {
+	controlBase
+}
+
+func (c *UrlLauncher) kind() string { return "UrlLauncher" }
+
+func (c *UrlLauncher) props() map[string]any {
+	m := map[string]any{}
+	return m
+}
+
+// UserAccelerometer: Streams linear acceleration readings.
+type UserAccelerometer struct {
+	controlBase
+	// Enabled: Whether the sensor should be sampled. Disable to stop streaming.
+	Enabled *bool
+	// Interval: Desired sampling interval provided as a `Duration`. Defaults to 200 ms.
+	Interval time.Duration
+	// CancelOnError: Whether the stream subscription should cancel on the first sensor
+	// error.
+	CancelOnError *bool
+	// OnReading: Fires when a new reading is available.
+	OnReading func(e *UserAccelerometerReadingEvent)
+	// OnError: Fired when the platform reports a sensor error. `event.message` is the error
+	// description.
+	OnError func(e *SensorErrorEvent)
+}
+
+func (c *UserAccelerometer) kind() string { return "UserAccelerometer" }
+
+func (c *UserAccelerometer) props() map[string]any {
+	m := map[string]any{}
+	if c.Enabled != nil {
+		m["enabled"] = *c.Enabled
+	}
+	if c.Interval != 0 {
+		m["interval"] = c.Interval.Milliseconds()
+	}
+	if c.CancelOnError != nil {
+		m["cancel_on_error"] = *c.CancelOnError
+	}
+	if c.OnReading != nil {
+		m["on_reading"] = true
+	}
+	if c.OnError != nil {
+		m["on_error"] = true
+	}
+	return m
+}
+
+func (c *UserAccelerometer) applyProps(p map[string]any) {
+	for k, v := range p {
+		switch k {
+		case "enabled":
+			assignPtr(&c.Enabled, v)
+		case "cancel_on_error":
+			assignPtr(&c.CancelOnError, v)
+		}
+	}
+}
+
+func (c *UserAccelerometer) handleEvent(e *Event) {
+	switch e.Name {
+	case "reading":
+		if c.OnReading != nil {
+			ev := &UserAccelerometerReadingEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnReading(ev)
+		}
+	case "error":
+		if c.OnError != nil {
+			ev := &SensorErrorEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnError(ev)
+		}
+	}
+}
+
 // VerticalDivider: A thin vertical line, with padding on either side.
 type VerticalDivider struct {
 	controlBase
@@ -39116,6 +39769,247 @@ func (c *VerticalDivider) applyProps(p map[string]any) {
 			assign(&c.LeadingIndent, v)
 		case "trailing_indent":
 			assign(&c.TrailingIndent, v)
+		}
+	}
+}
+
+// Wakelock: Prevents the device from sleeping while enabled.
+type Wakelock struct {
+	controlBase
+}
+
+func (c *Wakelock) kind() string { return "Wakelock" }
+
+func (c *Wakelock) props() map[string]any {
+	m := map[string]any{}
+	return m
+}
+
+// Window: Controls the app window.
+type Window struct {
+	controlBase
+	// Bgcolor: Sets background color of an application window.
+	Bgcolor Color
+	// Width: Defines the width of the app window.
+	Width float64
+	// Height: Defines the height of the app window.
+	Height float64
+	// Top: Defines the vertical position of a native OS window - a distance in virtual
+	// pixels from the top edge of the screen.
+	Top float64
+	// Left: Defines the horizontal position of the app window - a distance in virtual pixels
+	// from the left edge of the screen.
+	Left float64
+	// MaxWidth: Defines the maximum width of the app window.
+	MaxWidth float64
+	// MaxHeight: Defines the maximum height of the app window.
+	MaxHeight float64
+	// MinWidth: Defines the minimum width of the app window.
+	MinWidth float64
+	// MinHeight: Defines the minimum height of the app window.
+	MinHeight float64
+	// Opacity: Defines the opacity of the app window.
+	Opacity *float64
+	// AspectRatio: Defines the aspect ratio of the app window.
+	AspectRatio float64
+	// Brightness: The brightness of a app window.
+	Brightness Brightness
+	// Maximized: Whether the app window is maximized.
+	Maximized bool
+	// Minimized: Whether the app window is minimized.
+	Minimized bool
+	// Minimizable: Whether the app window can be minimized through the window's "Minimize"
+	// button.
+	Minimizable *bool
+	// Maximizable: Whether to hide/disable app window's "Maximize" button.
+	Maximizable *bool
+	// Resizable: Whether the app window can be resized.
+	Resizable *bool
+	// Movable: Whether the app window can be moved.
+	Movable *bool
+	// FullScreen: Whether to switch the app's window to fullscreen mode.
+	FullScreen bool
+	// AlwaysOnTop: Whether the app window should always be displayed on top of other
+	// windows/apps.
+	AlwaysOnTop bool
+	// AlwaysOnBottom: Whether the app window should always be displayed below other windows.
+	AlwaysOnBottom bool
+	// PreventClose: Set to `True` to intercept the native close signal.
+	PreventClose bool
+	// SkipTaskBar: Whether the app window should be hidden from the Task Bar (on Windows) or
+	// Dock (on macOS).
+	SkipTaskBar bool
+	// TitleBarHidden: Whether to hide the app window's title bar.
+	TitleBarHidden bool
+	// TitleBarButtonsHidden: Whether to hide the app window's title bar buttons.
+	TitleBarButtonsHidden bool
+	// Frameless: Whether the app window should be frameless.
+	Frameless bool
+	// ProgressBar: The value from `0.0` to `1.0` to display a progress bar on Task Bar or
+	// Dock.
+	ProgressBar float64
+	// Focused: Whether the app window should be focused.
+	Focused *bool
+	// Visible: Whether to make the app window visible.
+	Visible *bool
+	// Shadow: Whether to display a shadow around the app window.
+	Shadow *bool
+	// Alignment: Defines the alignment of the app window.
+	Alignment *Alignment
+	// BadgeLabel: Sets a badge label on the app window.
+	BadgeLabel string
+	// Icon: The icon of the app window.
+	Icon string
+	// IgnoreMouseEvents: Whether the app window should ignore mouse events, passing them to
+	// the window below it. If this window has focus, it will still receive keyboard events.
+	IgnoreMouseEvents bool
+	// OnEvent: Called when app window changes its state. For example, when the window is
+	// maximized or minimized.
+	OnEvent func(e *WindowEvent)
+}
+
+func (c *Window) kind() string { return "Window" }
+
+func (c *Window) props() map[string]any {
+	m := map[string]any{}
+	setIf(m, "bgcolor", c.Bgcolor)
+	setIf(m, "width", c.Width)
+	setIf(m, "height", c.Height)
+	setIf(m, "top", c.Top)
+	setIf(m, "left", c.Left)
+	setIf(m, "max_width", c.MaxWidth)
+	setIf(m, "max_height", c.MaxHeight)
+	setIf(m, "min_width", c.MinWidth)
+	setIf(m, "min_height", c.MinHeight)
+	if c.Opacity != nil {
+		m["opacity"] = *c.Opacity
+	}
+	setIf(m, "aspect_ratio", c.AspectRatio)
+	setIf(m, "brightness", c.Brightness)
+	setIf(m, "maximized", c.Maximized)
+	setIf(m, "minimized", c.Minimized)
+	if c.Minimizable != nil {
+		m["minimizable"] = *c.Minimizable
+	}
+	if c.Maximizable != nil {
+		m["maximizable"] = *c.Maximizable
+	}
+	if c.Resizable != nil {
+		m["resizable"] = *c.Resizable
+	}
+	if c.Movable != nil {
+		m["movable"] = *c.Movable
+	}
+	setIf(m, "full_screen", c.FullScreen)
+	setIf(m, "always_on_top", c.AlwaysOnTop)
+	setIf(m, "always_on_bottom", c.AlwaysOnBottom)
+	setIf(m, "prevent_close", c.PreventClose)
+	setIf(m, "skip_task_bar", c.SkipTaskBar)
+	setIf(m, "title_bar_hidden", c.TitleBarHidden)
+	setIf(m, "title_bar_buttons_hidden", c.TitleBarButtonsHidden)
+	setIf(m, "frameless", c.Frameless)
+	setIf(m, "progress_bar", c.ProgressBar)
+	if c.Focused != nil {
+		m["focused"] = *c.Focused
+	}
+	if c.Visible != nil {
+		m["visible"] = *c.Visible
+	}
+	if c.Shadow != nil {
+		m["shadow"] = *c.Shadow
+	}
+	if c.Alignment != nil {
+		m["alignment"] = c.Alignment.toMap()
+	}
+	setIf(m, "badge_label", c.BadgeLabel)
+	setIf(m, "icon", c.Icon)
+	setIf(m, "ignore_mouse_events", c.IgnoreMouseEvents)
+	if c.OnEvent != nil {
+		m["on_event"] = true
+	}
+	return m
+}
+
+func (c *Window) applyProps(p map[string]any) {
+	for k, v := range p {
+		switch k {
+		case "bgcolor":
+			assign(&c.Bgcolor, v)
+		case "width":
+			assign(&c.Width, v)
+		case "height":
+			assign(&c.Height, v)
+		case "top":
+			assign(&c.Top, v)
+		case "left":
+			assign(&c.Left, v)
+		case "max_width":
+			assign(&c.MaxWidth, v)
+		case "max_height":
+			assign(&c.MaxHeight, v)
+		case "min_width":
+			assign(&c.MinWidth, v)
+		case "min_height":
+			assign(&c.MinHeight, v)
+		case "opacity":
+			assignPtr(&c.Opacity, v)
+		case "aspect_ratio":
+			assign(&c.AspectRatio, v)
+		case "brightness":
+			assign(&c.Brightness, v)
+		case "maximized":
+			assign(&c.Maximized, v)
+		case "minimized":
+			assign(&c.Minimized, v)
+		case "minimizable":
+			assignPtr(&c.Minimizable, v)
+		case "maximizable":
+			assignPtr(&c.Maximizable, v)
+		case "resizable":
+			assignPtr(&c.Resizable, v)
+		case "movable":
+			assignPtr(&c.Movable, v)
+		case "full_screen":
+			assign(&c.FullScreen, v)
+		case "always_on_top":
+			assign(&c.AlwaysOnTop, v)
+		case "always_on_bottom":
+			assign(&c.AlwaysOnBottom, v)
+		case "prevent_close":
+			assign(&c.PreventClose, v)
+		case "skip_task_bar":
+			assign(&c.SkipTaskBar, v)
+		case "title_bar_hidden":
+			assign(&c.TitleBarHidden, v)
+		case "title_bar_buttons_hidden":
+			assign(&c.TitleBarButtonsHidden, v)
+		case "frameless":
+			assign(&c.Frameless, v)
+		case "progress_bar":
+			assign(&c.ProgressBar, v)
+		case "focused":
+			assignPtr(&c.Focused, v)
+		case "visible":
+			assignPtr(&c.Visible, v)
+		case "shadow":
+			assignPtr(&c.Shadow, v)
+		case "badge_label":
+			assign(&c.BadgeLabel, v)
+		case "icon":
+			assign(&c.Icon, v)
+		case "ignore_mouse_events":
+			assign(&c.IgnoreMouseEvents, v)
+		}
+	}
+}
+
+func (c *Window) handleEvent(e *Event) {
+	switch e.Name {
+	case "event":
+		if c.OnEvent != nil {
+			ev := &WindowEvent{Event: *e}
+			decodeEvent(e, ev)
+			c.OnEvent(ev)
 		}
 	}
 }
