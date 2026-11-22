@@ -175,11 +175,70 @@ Isso prova:
 
 ---
 
-## 10. Próximos passos
+## 10. Resultado do protótipo
+
+✅ **Funcionou** com o cliente Flet v1.1.2 no macOS. O contador abre, e cada clique envia só a mudança do texto.
+
+### Protocolo do cliente Flet (v1.1.2)
+
+- **Transporte:** TCP local (`tcp://127.0.0.1:porta`) ou socket Unix. O endereço é o 1º argumento do cliente.
+- **Pacote:** `[tamanho:u32 LE][tipo:u8][corpo]`
+  - Tipo `0x00`: mensagem MessagePack `[ação, corpo]`.
+  - Tipo `0x01`: canal de dados binário (não usado ainda).
+- **Ações:**
+
+| Código | Ação | Direção |
+|---|---|---|
+| 1 | Registrar cliente | Ida e volta |
+| 2 | Patch de controle | Go → cliente |
+| 3 | Evento de controle | Cliente → Go |
+| 4 | Atualizar propriedades | Cliente → Go |
+| 5 | Chamar método | Ida e volta |
+| 6 | Sessão travou | Go → cliente |
+
+- **Controle:** mapa com `_c` (tipo, ex.: `"Text"`), `_i` (id) e as propriedades. Eventos aparecem como `on_click: true`.
+- **IDs reservados:** 1 = Page, 2 = Window. Os controles do Go começam no 3.
+- **Registro:** o cliente manda tamanho, plataforma e tema. O Go responde com a página completa (`page_patch`).
+- **Patch:** `[[árvore], operação, …]`. Operação de troca: `[0, nó, propriedade, valor]`. Também existem adicionar (1), remover (2) e mover (3).
+
+### Estrutura atual
+
+```
+app.go              → abre o cliente e espera a conexão
+page.go             → árvore, diff e envio das mudanças
+session.go          → mensagens do cliente
+control.go          → base dos controles e IDs
+controls.go         → Text, Button, Column, Row
+event.go            → eventos
+internal/protocol/  → formato das mensagens
+internal/client/    → abre o cliente (variável FLET_CLIENT_PATH)
+examples/counter/   → o contador
+```
+
+A sessão ficou na raiz, e não em `internal/session`, para evitar dependência circular.
+
+### Como rodar
+
+1. Baixe e extraia o `flet-macos.tar.gz` da v1.1.2 do Flet.
+2. Aponte `FLET_CLIENT_PATH` para o `Flet.app`.
+3. Rode o exemplo `examples/counter`. Use `FLETGO_DEBUG=1` para ver as mensagens.
+
+### Limitações conhecidas
+
+- Quando uma lista de filhos muda, ela é enviada inteira (ainda sem adicionar/remover item a item).
+- Controles removidos continuam no índice de eventos.
+- Os eventos rodam um por vez, na ordem em que chegam.
+- Sem reconexão.
+- O cliente não é baixado automaticamente.
+
+---
+
+## 11. Próximos passos
 
 1. ~~Decidir entre opção A e B~~ → opção A.
-2. Clonar o repositório do Flet e estudar o protocolo.
-3. Lado Go: árvore de controles, IDs, diff e despacho de eventos.
-4. Conectar ao cliente: o do Flet (A) ou um renderer com `text`, `button` e `column` (B).
-5. Contador funcionando de ponta a ponta.
-6. Depois: mais widgets e reconexão.
+2. ~~Estudar o protocolo~~ → seção 10.
+3. ~~Árvore de controles, IDs, diff e despacho de eventos~~.
+4. ~~Contador funcionando de ponta a ponta~~.
+5. Baixar o cliente automaticamente, como o Python faz.
+6. Diff de listas item a item e limpeza do índice.
+7. Fase 2: gerador de controles a partir das definições do Flet.
